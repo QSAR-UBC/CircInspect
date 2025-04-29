@@ -1,0 +1,24 @@
+import pennylane as qml
+from pennylane import numpy as np
+
+dev = qml.device("default.qubit", wires=2)
+
+def hello():
+    qml.RZ(1,1)
+
+@qml.qnode(dev)
+def circuit1(x):
+    qml.RX(x,0)
+    hello()
+    qml.CNOT([0,1])
+    return qml.probs()
+
+@qml.qnode(dev) 
+def circuit2(x):
+    qml.RZ(x,0)
+    hello()
+    qml.CNOT([0,1])
+    return qml.probs()
+
+circuit1(0.1)
+circuit2(0.2) 

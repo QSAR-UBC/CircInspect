@@ -1,0 +1,16 @@
+from pennylane import numpy as np
+import pennylane as qml
+def qfunc_adder(m, wires):
+    qml.QFT(wires=wires)
+    for i in range(len(wires)): 
+        const = m*np.pi/(2**i)
+        qml.PhaseShift(const ,wires=[i])   
+    qml.adjoint(qml.QFT(wires=wires))      
+wires = range(4) 
+dev = qml.device("default.qubit", wires=wires, shots=1) 
+@qml.qnode(dev)
+def test_circuit():
+    qml.PauliX(wires=0)
+    qfunc_adder(5, wires)
+    return qml.sample()
+test_circuit()

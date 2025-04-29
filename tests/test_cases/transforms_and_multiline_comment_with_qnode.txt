@@ -1,0 +1,41 @@
+import pennylane as qml
+from typing import Callable, Sequence
+from pennylane.tape import QuantumTape
+import numpy as np
+from functools import partial
+
+@qml.transform
+def replace_paulix(tape: qml.tape.QuantumTape)-> (Sequence[QuantumTape], Callable):
+    new_ops = []
+    for op in tape.operations:
+        if op.name == "PauliX":
+            new_ops.append(qml.Hadamard(op.wires))
+            new_ops.append(qml.PauliZ(op.wires))
+            new_ops.append(qml.Hadamard(op.wires))
+        else:
+             new_ops.append(op)
+    return [QuantumTape(new_ops, tape.measurements, tape.shots, tape.trainable_params)], lambda res: res[0]
+
+
+@qml.transform
+def replace_pauliz(tape: qml.tape.QuantumTape)-> (Sequence[QuantumTape], Callable):
+    new_ops = []
+    for op in tape.operations:
+        if op.name == "PauliZ":
+            new_ops.append(qml.S(op.wires))
+            new_ops.append(qml.S(op.wires))
+        else:
+             new_ops.append(op)
+    return [QuantumTape(new_ops, tape.measurements, tape.shots, tape.trainable_params)], lambda res: res[0]
+
+dev = qml.device("default.qubit", wires=3)
+
+"""@qml.qnode(dev)"""
+@replace_pauliz
+@replace_paulix
+@qml.qnode(dev)
+def my_circuit():
+    qml.Hadamard(wires=0)
+    return qml.state()
+
+my_circuit()

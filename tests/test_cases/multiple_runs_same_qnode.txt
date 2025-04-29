@@ -1,0 +1,11 @@
+import pennylane as qml
+from pennylane import numpy as np
+dev = qml.device("default.qubit", wires=2)
+@qml.qnode(dev)
+def circuit(x):
+    qml.RX(x,0)
+    qml.CNOT([0,1])
+    return qml.probs()
+angles = np.linspace(0,2*np.pi, 2)
+for i in angles:
+    circuit(i)

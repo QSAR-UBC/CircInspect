@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+ 
+<head>
+    <title>CircInspect-Admin</title>
+</head>
+ 
+<body>
+    <h1>CircInspect Admin Report</h1>
+		<p>Generated on {{data["date_utc"]}} UTC</p>
+		<p>Total number of sessions to date: {{data["session_count"]}}</p>
+		<p>Number of times users entered debugger mode: {{data["enter_debugger_count"]}}</p>
+		<p>Number of times users entered real-time mode: {{data["enter_realtime_count"]}}</p>
+		<p>Total time spent in sessions (in minutes): {{data["total_session_minutes"]}}</p>
+		<p>Total time spent in debugger mode (in minutes): {{data["total_debugger_minutes"]}}</p>
+		<p>Total time spent in real-time development mode (in minutes): {{data["total_realtime_minutes"]}}</p>
+</body>
+ 
+</html>

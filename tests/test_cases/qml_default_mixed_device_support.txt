@@ -1,0 +1,10 @@
+import pennylane as qml
+
+dev = qml.device("default.mixed", wires=1)
+
+@qml.qnode(dev)
+def my_function():
+    qml.PauliX(wires=0)
+    return qml.probs()
+
+my_function()

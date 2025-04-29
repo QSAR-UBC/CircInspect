@@ -1,0 +1,15 @@
+import pennylane as qml
+from pennylane import numpy as np
+dev = qml.device("default.qutrit", wires=3)
+U = np.array([[1, 1, 0], [1, -1, 0], [0, 0, np.sqrt(2)]]) / np.sqrt(2)
+@qml.qnode(dev)
+def qutrit_circuit():
+    qml.QutritUnitary(U, wires=0)
+    qml.QutritUnitary(U, wires=1)
+    controlled()
+    return qml.state()
+
+def controlled():
+    qml.ControlledQutritUnitary(U, control_wires=[0, 1], wires=2)
+
+state = qutrit_circuit()

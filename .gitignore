@@ -1,0 +1,56 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# build
+/client/build
+/client/build.zip
+
+# email
+credentials.json
+**/credentials.json
+
+# dependencies
+/node_modules
+**/node_modules
+*/client/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+HACKED*
+
+# production
+/build
+/dist
+/client/build/
+
+# Python caches
+/__pycache__
+/server/__pycache__
+**/__pycache__
+.pytest_cache
+
+# Jupyter notebook caches
+.ipynb_checkpoints/
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+/server/.idea/
+/client/.idea/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables
+.env
+**/.env
+.env.build
+.vercel
+
+# Text editors and IDEs
+**/.idea

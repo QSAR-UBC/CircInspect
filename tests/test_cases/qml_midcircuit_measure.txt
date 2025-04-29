@@ -1,0 +1,11 @@
+import pennylane as qml
+from pennylane import numpy as np
+dev = qml.device("default.qubit", wires=3)
+@qml.qnode(dev)
+def func(x, y):
+    qml.RY(x, wires=0)
+    qml.CNOT(wires=[0, 1])
+    m_0 = qml.measure(1)
+    qml.cond(m_0, qml.RY)(y, wires=0)
+    return qml.probs(wires=[0]) 
+func(0.5, 0.5)
