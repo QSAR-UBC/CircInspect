@@ -96,7 +96,7 @@ The primary developers of CircInspect are Mushahid Khan
 
 The authors acknowledge funding from the NSERC CREATE in Quantum Computing
 Program (grant number 543245), NSERC Alliance Quantum, UBC 4YF, and
-UBC WLIURA programs. Thanks to QSAR Lab members and the PennyLane team at Xanadu
+UBC WLIURA programs. Thanks to Prashant Nair, QSAR Lab members, and the PennyLane team at Xanadu
 for testing and providing feedback on CircInspect.
 
 If you use CircInspect as part of your workflow, we would appreciate if you cite it using the BibTeX below.
