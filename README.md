@@ -2,15 +2,17 @@
 [![Ubuntu 22.04](https://img.shields.io/badge/Verified%20on-Ubuntu%2022.04-darkorange?logo=ubuntu)](https://ubuntu.com/)
 [![Fedora 38](https://img.shields.io/badge/Verified%20on-Fedora%2038-blue?logo=fedora)](https://fedoraproject.org/)
 
-The Quantum Software and Algorithms Research Lab at UBC introduces [CircInspect](https://circinspect.ece.ubc.ca/), the first visual tool for debugging quantum programs in PennyLane.
+The [Quantum Software and Algorithms Research Lab](https://glassnotes.github.io/qsar.html) at UBC introduces [CircInspect](https://circinspect.ece.ubc.ca/), the first visual tool for debugging quantum programs in PennyLane.
 
 CircInspect offers adaptive visualization of quantum circuits, enabling you to explore your quantum programs at varying levels of abstraction. You can zoom into subroutines, trace program outputs, and set breakpoints to isolate the source of a bug.
+
+## How to get started with CircInspect
 
 CircInspect has two different modes: Debugger Mode and Real-Time Development Mode.  With integrated debugger support, Debugger Mode allows for monitoring of structural and behavioural changes at breakpoints. Real-Time Development mode updates the circuit dynamically as you type, providing immediate feedback and deeper insight into how code translates into quantum circuits.
 
 We are researching how quantum developers debug their programs and CircInspect is a part of that effort. If you’re building algorithms with PennyLane, please give it a try and send us your feedback.
 
-# How to get started with CircInspect
+
 In Debugger Mode, you can isolate and examine individual quantum circuit components while monitoring changes in program structure and output at breakpoints. To set a breakpoint, select “Debugger Mode” from the dropdown menu in the top left, and click on the line number. You can then click “Start Debugger” and use the buttons to step through your code.
 
 ![437292476-f0a810a5-0d6d-4157-91c9-89afb6f5c2f7](https://github.com/user-attachments/assets/337c5b5f-41f9-471a-a283-1ac99a3b530b)
@@ -87,6 +89,16 @@ Follow the instructions in [performance_tests/README.md](performance_tests/READM
 CircInsepct is available open source under the Apache 2.0 License. Contributions are welcome. Please follow the instructions in the following link to contribute: [How to contribute?](https://github.com/QSAR-UBC/CircInspect-dev/blob/main/.github/CONTRIBUTING.md)
 
 ## Reference
+
+The primary developers of CircInspect are Mushahid Khan
+([@mushahidkhan835](https://github.com/mushahidkhan835)) and Cihan Bosnali
+([@CihanBosnali](https://github.com/CihanBosnali)).
+
+The authors acknowledge funding from the NSERC CREATE in Quantum Computing
+Program (grant number 543245), NSERC Alliance Quantum, UBC 4YF, and
+UBC WLIURA programs. Thanks to Prashant Nair, QSAR Lab members, and the PennyLane team at Xanadu
+for testing and providing feedback on CircInspect.
+
 If you use CircInspect as part of your workflow, we would appreciate if you cite it using the BibTeX below.
 ```
 @INPROCEEDINGS{10821435,
