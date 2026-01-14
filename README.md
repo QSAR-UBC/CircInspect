@@ -37,14 +37,14 @@ pip install -r requirements.txt
 ```
 The following will be installed:
 ```
-numpy==1.26.2
-pennylane==0.37.0
+pennylane==0.41.0
 flask==3.0.0
 google-api-python-client==2.132.0
 google-auth-oauthlib==1.2.0
 pymongo==4.7.2
 dill==0.3.8
 matplotlib==3.8.2
+requests==2.32.3
 ```
 
 To install the frontend server, install Node.js, go into `CircInspect/client` directory and run
