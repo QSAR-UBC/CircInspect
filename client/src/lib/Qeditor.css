@@ -1,0 +1,16 @@
+.breakSide {
+	background: #FF5555;
+	width: 5px !important;
+	margin-left: 3px;
+	height: 5px !important;
+	border-radius: 100%;
+	margin-top: 8px;
+}
+
+.highlightLine {
+	background: rgba(255, 221, 0, 0.3);
+}
+
+.monaco-editor .margin-view-overlays .line-numbers {
+	cursor: pointer !important;
+}

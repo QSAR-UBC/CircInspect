@@ -1,0 +1,96 @@
+import pennylane as qml
+from typing import Callable, Sequence
+from pennylane.tape import QuantumTape
+import numpy as np
+from functools import partial
+def load_pattern(pattern):
+   """
+   Loads  string pattern on a quantum computer
+    Args:
+        pattern (string): The binary string pattern to load
+   """
+   for i in range(len(pattern)):
+       if pattern[i] == "1":
+           qml.PauliX(i)
+def move_pattern_to_memory_register(len_of_pattern):
+   """
+   Makes a copy of n bits from the stored pattern to the memory qubits flagged by u_2 = |1>
+   """
+   for i in range(len_of_pattern):
+       qml.MultiControlledX([i, len_of_pattern + 1, len_of_pattern + 2 + i])
+def fill_with_ones(pattern_len):
+   """
+   Fills with 1s all the bits in the memory qubits which are equal to the respective bits in pattern qubits.
+   This is true only for the pattern which is being currently processed.
+    Args:
+        pattern_len (int): The length of the binary string pattern
+   """
+   for i in range(pattern_len):
+       qml.CNOT([i, pattern_len + 2 + i])
+       qml.PauliX(pattern_len + 2 + i)
+def flip_u_1(pattern_len):
+   """
+   Flips u_1 qubit if all of memory qubits are 1
+   Args:
+        pattern_len (int): The length of the binary string pattern
+   """
+   qml.MultiControlledX(list(range(pattern_len + 2, pattern_len + pattern_len + 2)) + [pattern_len])
+def set_up(number_of_patterns, idx, pattern_len):
+   """
+    Runs methods to add pattern string to a superposition
+    Args:
+        num_of_patterns (int): The number of binary string patterns to store
+        binary_strings (set): A set of binary string patterns to store
+        string_len (int): The length of a binary string pattern
+        idx (int): The index of the binary string pattern
+   """
+   move_pattern_to_memory_register(pattern_len)
+   fill_with_ones(pattern_len)
+   flip_u_1(pattern_len)
+   update_amplitudes(idx, number_of_patterns, pattern_len)
+def reset_qubits(len_of_pattern):
+   """
+   Runs methods to reset qubits so that more pattern strings can be stored
+   Args:
+    len_of_pattern (int): The elength of a binary string pattern
+   """
+   flip_u_1(len_of_pattern)
+   fill_with_ones(len_of_pattern)
+   move_pattern_to_memory_register(len_of_pattern)
+def update_amplitudes(idx, number_of_patterns, len_of_pattern):
+   """
+   Adds the input pattern to the memory qubits with uniform amplitude
+    Args:
+        idx (int): The index of the binary string pattern
+        number_of_patterns (int): The number of binary string patterns to store
+        len_of_pattern (int): The length of a binary string pattern
+   """
+   j = number_of_patterns + 1 - (idx +1)
+   CS_j = np.array([
+       [1,0,0,0],
+       [0,1,0,0],
+       [0,0, np.sqrt((j - 1)/ j), 1/np.sqrt(j)],
+       [0,0, -1/np.sqrt(j), np.sqrt((j - 1) / j)]
+   ])
+   qml.QubitUnitary(CS_j, wires=[len_of_pattern, len_of_pattern + 1])
+dev = qml.device("default.qubit", wires=6)
+@qml.qnode(device=dev)
+def storage(patterns, len_of_pattern, num_of_patterns):
+   """
+   Stores an array of string patterns in a superposition
+    Args:
+        binary_strings (set): A set of binary string patterns to store
+        string_len (int): The length of a binary string pattern
+        num_of_patterns (int): The number of binary string patterns to store
+   """
+   qml.PauliX(3)
+   idx = 0
+   for pattern in patterns:
+        load_pattern(pattern)
+        set_up(num_of_patterns, idx, len_of_pattern)
+        reset_qubits(len(pattern))
+        load_pattern(pattern)
+        qml.Barrier()
+        idx += 1
+   return qml.probs(wires=range(4, 6))
+storage(["11", "10"], 2, 2)

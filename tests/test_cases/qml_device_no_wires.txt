@@ -1,0 +1,7 @@
+import pennylane as qml
+dev = qml.device("default.qubit")
+@qml.qnode(dev)
+def circ():
+    qml.RX(0.1, 0)
+    return qml.state()
+circ()

@@ -1,0 +1,12 @@
+import pennylane as qml
+from pennylane import numpy as np
+from functools import partial
+
+dev = qml.device("default.qubit", wires=3)
+"""@qml.qnode(dev)"""
+@qml.qnode(dev)
+def my_circuit():
+    qml.Hadamard(wires=0)
+    return qml.state()
+
+my_circuit()

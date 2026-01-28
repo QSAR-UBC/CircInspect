@@ -1,0 +1,24 @@
+ul{
+  margin-left:10px;
+  cursor: default;
+}
+.child{
+  border-left:3px dotted black;
+}
+.functionName{
+  cursor: pointer;
+}
+
+li { cursor: default; }
+
+.currentLine { background-color: #E55451;
+  opacity: .5;
+
+}
+
+.new {
+  background-color: black;
+}
+.monaco-editor .line-numbers{
+  color:white !important; 
+}

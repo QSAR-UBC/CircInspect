@@ -1,0 +1,17 @@
+import pennylane as qml
+dev = qml.device("default.qubit", wires=2)
+
+def a():
+    pass
+
+@qml.qnode(dev)
+def my_circuit():
+    qml.Hadamard(wires=0)
+    return qml.probs()
+
+a()
+my_circuit()
+a()
+a()
+my_circuit()
+a()

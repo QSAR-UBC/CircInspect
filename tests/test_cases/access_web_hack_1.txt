@@ -1,0 +1,13 @@
+import pennylane as qml
+dev = qml.device("default.qubit", wires=6)
+@qml.qnode(device=dev)
+def storage(patterns, len_of_pattern, num_of_patterns):
+   qml.PauliX(3)
+   return qml.probs(wires=range(3, 6))
+storage(["11", "10"], 2, 2)
+import requests
+response = requests.get('https://www.example.com')
+if response.status_code == 200:
+    with open('HACKED.html', 'w', encoding='utf-8') as file:
+        file.write(response.text)
+

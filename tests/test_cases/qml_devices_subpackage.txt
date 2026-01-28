@@ -1,0 +1,7 @@
+import pennylane as qml
+dev = qml.devices.DefaultQubit(wires=2)
+@qml.qnode(dev)
+def circ():
+    qml.RX(0.1, 0)
+    return qml.expval(qml.PauliX(0))
+circ()
