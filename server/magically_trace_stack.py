@@ -34,8 +34,7 @@ class MagicallyTraceStack:
     def __init__(self, lines_to_ignore):
         self.info_unexpanded = []
         self.info = []
-        self.lines_to_ignore = lines_to_ignore
-
+        self.lines_to_ignore = lines_to_ignore 
     def __enter__(self):
         sys.settrace(self.trace)
         return self
@@ -51,16 +50,22 @@ class MagicallyTraceStack:
         Returns:
             Itself (to be used by code execution to trace the next line)
         """
+
         ins = None
         if (
-            frame.f_code.co_name == "device"
+            frame.f_code.co_name == "device" 
             or frame.f_code.co_filename == "<string>"
-            or type(arg) is qml.queuing.AnnotatedQueue
-        ):
-            ins = inspect.getargvalues(frame)
+            or type(arg) is qml.queuing.AnnotatedQueue 
+        ):  
+           
+            ins_raw = inspect.getargvalues(frame)
+            
+            ins = ins_raw._replace(locals=dict(ins_raw.locals))
+            
             self.info.append(
                 (frame.f_code.co_name, frame.f_lineno, arg, frame.f_code.co_filename, event, ins)
             )
+
         return self.trace
 
     def get_info_expanded(self):
@@ -81,8 +86,8 @@ class MagicallyTraceStack:
                 ]
             )
 
-    def get_stack(self):
-        """Get the stack of operations recorded while trace(self) was running
+    def get_stack(self): 
+        """Get the stack of PennyLane operations recorded while trace(self) was running
             with the code.
 
         Returns:
@@ -92,7 +97,7 @@ class MagicallyTraceStack:
         res = {}
         got_queue = False
         for co_name, lineno, arg, filename, event, argvals in self.info:
-            if type(arg) is qml.queuing.AnnotatedQueue and not got_queue:
+            if type(arg) is qml.queuing.AnnotatedQueue and not got_queue: 
                 res["commands"] = arg
                 got_queue = True
 

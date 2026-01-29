@@ -3,11 +3,11 @@
 # Running Tests
 1. Run the code execution server on port 5001 by running this command inside `CircInspect/` directory:
 ```
-  flask --app execserver.app run --debug --port=5001
+  poetry run flask --app execserver.app run --debug --port=5001
 ```
 2. Run all automated tests using Pytest by running this command inside `CircInspect/tests` directory:
 ```
-  pytest
+  poetry run pytest
 ```
 Run it as `pytest -v` to get more information in case of an error.
 

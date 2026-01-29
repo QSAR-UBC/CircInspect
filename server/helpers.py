@@ -18,13 +18,14 @@ A set of helper functions used by server/app.py and execserver/app.py
 
 import pennylane as qml
 import numpy as np
+import matplotlib
+matplotlib.use("Agg") 
 from matplotlib import pyplot as plt
 import base64
 import io
 from collections import deque
 from flask import Flask, render_template, request, jsonify
 from server.magically_trace_stack import MagicallyTraceStack
-
 import re
 import tokenize
 from server.command import Command
@@ -115,12 +116,20 @@ def find_first_qnode_decorator(tokens):
         index (line number - 1) of the first qnode, if a qnode is found.
         -1, if no qnode decorator is found.
     """
-    qnode_tokens = list(
-        filter(lambda t: t.type == 54 and t.string == "@" and "@qml.qnode" in t.line, tokens)
-    )
-    if len(qnode_tokens) == 0:
-        return -1
-    return qnode_tokens[0].start[0] - 1
+    tokens = list(tokens)
+    
+    # TODO: Provide a meaningful error message
+    for i, t in enumerate(tokens[:-4]):
+        if t.type == tokenize.OP and t.string == "@":
+
+            if (
+                tokens[i+1].string == "qml"
+                and tokens[i+2].string == "."
+                and tokens[i+3].string == "qnode"
+            ):
+                return t.start[0] - 1  # line index
+
+    return -1
 
 
 def comment_out_transforms(code):
@@ -134,21 +143,24 @@ def comment_out_transforms(code):
     """
 
     tokens = tokenize.tokenize(io.BytesIO(code.encode("utf-8")).readline)
-    idx = find_first_qnode_decorator(tokens)
-    code_arr = code.split("\n")
+    idx = find_first_qnode_decorator(tokens) 
+    code_arr = code.split("\n") 
 
-    j = idx - 1
-    while j >= 0:
-        if len(code_arr[j]) == 0 or code_arr[j][0] == "#":
+    j = idx - 1 
+    
+    while j >= 0: 
+        if len(code_arr[j]) == 0 or code_arr[j][0] == "#": 
             j -= 1
-        elif "@" == code_arr[j][0]:
-            code_arr[j] = "#" + code_arr[j]
+        elif "@" == code_arr[j][0]: 
+            code_arr[j] = "#" + code_arr[j] 
             j -= 1
         else:
             break
-    k = idx + 1
+
+   
+    k = idx + 1 
     while k < len(code_arr):
-        if len(code_arr[k]) == 0 or code_arr[k][0] == "#":
+        if len(code_arr[k]) == 0 or code_arr[k][0] == "#": 
             k += 1
         elif "@" == code_arr[k][0]:
             code_arr[k] = "#" + code_arr[k]
@@ -159,7 +171,7 @@ def comment_out_transforms(code):
     return "\n".join(code_arr)
 
 
-def get_transform_details(code, starting_idx):
+def get_transform_details(code):
     """Returns the following information about transforms:
        names of transforms applied to QNode and line numbers on which
        they are applied
@@ -175,7 +187,7 @@ def get_transform_details(code, starting_idx):
     transforms_details = deque([])
     code_arr = code.split("\n")
     tokens = list(tokenize.tokenize(io.BytesIO(code.encode("utf-8")).readline))
-    idx = find_first_qnode_decorator(tokens)
+    idx = find_first_qnode_decorator(tokens) 
 
     # find possible transform decorators (type is OP, string is @ and
     # not a qnode) from tokens and get a list of their line numbers
@@ -183,7 +195,7 @@ def get_transform_details(code, starting_idx):
         map(
             lambda t: t.start[0] - 1,
             filter(
-                lambda t: t.type == 54 and t.string == "@" and "@qml.qnode(" not in t.line, tokens
+                lambda t: t.type == tokenize.OP and t.string == "@" and "@qml.qnode(" not in t.line, tokens
             ),
         )
     )
@@ -211,7 +223,7 @@ def get_transform_details(code, starting_idx):
     return transforms_details
 
 
-def get_num_shots(info):
+def get_num_shots(info): #could also be used to return device name (also pennylane specific in terms of object structure)
     """Returns number of shots
 
     Args:
@@ -274,7 +286,8 @@ def get_device_info(info, annotated_queue):
     num_wires = 0
 
     set_wires = set()
-    for j in annotated_queue.queue:
+    #finds exactly what wires are used during execution
+    for j in annotated_queue.queue: 
         if j.wires is None:
             set_wires.update()
         set_wires.update(j.wires)
@@ -300,27 +313,29 @@ def get_list_of_commands(info, method_names, code, annotated_queue):
     commands = []
     code_arr = code.split("\n")
 
+
+    #finds and labels all the classical commands as classical (specifically for defined functions)
     for i in range(len(info)):
         ith_info = info[i]
         if ith_info[0] in method_names and ith_info[-3] == "<string>":
             if (
                 len(commands) > 0
-                and commands[-1].code_line == code_arr[ith_info[1] - 1].strip()
-                and ith_info[-2] == "return"
+                and commands[-1].code_line == code_arr[ith_info[1] - 1].strip() 
+                and ith_info[-2] == "return" 
             ):
                 commands[-1].line_type = "return"
                 continue
             else:
                 command = Command(
-                    ith_info[0],
-                    ith_info[1],
-                    code_arr[ith_info[1] - 1].strip(),
-                    ith_info[-2],
-                    "classical",
+                    ith_info[0], 
+                    ith_info[1], 
+                    code_arr[ith_info[1] - 1].strip(), 
+                    ith_info[-2], 
+                    "classical", 
                 )
                 command.arguments = ith_info[-1]
                 commands.append(command)
-
+   
     circuit_commands = []
     circuit_name = ""
     for c in commands:
@@ -331,6 +346,7 @@ def get_list_of_commands(info, method_names, code, annotated_queue):
             if c.function == circuit_name and c.line_type == "return":
                 break
     commands = circuit_commands
+
 
     i = 0
     for j in range(len(commands)):
@@ -442,76 +458,62 @@ def get_commands_to_execute_for_identifier(commands, identifier):
 
     return commands_called_from_identifier
 
-
-def draw_circuit(
-    commands, device_name, num_wires, num_shots, last_command, all_commands, real_time=True
-):
-    """Draw circuit of list of commands
+def draw_circuit(commands, device_name, num_wires, num_shots, last_command, all_commands):
+    """
+    Draw a quantum circuit given a list of commands
 
     Args:
-        commands(list): List of command objects
-        device_name(string): Device name
-        num_wires(int): Number of wires in quantum circuit
-        num_shots(int): Number of shots
-        last_command(pennylane operation): Last command for circuit
+        commands (list): List of command objects.
+        device_name (str): Name of the PennyLane device.
+        num_wires (int): Number of wires in the circuit.
+        num_shots (int): Number of shots for the device.
+        last_command (list): List of PennyLane operations for the last step.
+        all_commands (list): All commands in the program for wiring info.
 
     Returns:
-        Circuit Image
+        matplotlib.figure.Figure: Figure object of the circuit.
     """
 
-    if num_shots != 0 and num_wires != 0:
-        dev = qml.device(device_name, wires=num_wires, shots=num_shots)
-    elif num_wires != 0:
-        dev = qml.device(device_name, wires=num_wires)
-    elif num_shots != 0:
-        dev = qml.device(device_name, shots=num_shots)
-    else:
-        dev = qml.device(device_name)
-
+    dev = qml.device(device_name, wires=num_wires or 1)
+    @qml.set_shots(shots = num_shots or None)
     @qml.qnode(dev)
     def circuit():
-        for i in range(len(commands)):
-            command = commands[i]
+        for i, command in enumerate(commands):
             if command.quantum_or_classical == "classical" and command.line_type == "call":
                 set_command_wires = set()
                 for c in all_commands:
                     if (
-                        c.identifier_its_called_from == commands[i - 1].identifier
+                        i > 0
+                        and c.identifier_its_called_from == commands[i - 1].identifier
                         and c.quantum_or_classical == "quantum"
                     ):
-                        wires = list(c.code_line.wires)
-                        for wire in wires:
-                            set_command_wires.add(wire)
-                set_command_wires = list(set_command_wires)
-                set_command_wires.sort()
+                        set_command_wires.update(c.code_line.wires)
+                set_command_wires = sorted(set_command_wires) or range(num_wires)
 
+                # Custom operation
                 class Func(qml.operation.Operation):
-                    num_wires = qml.operation.AnyWires
                     grad_method = "A"
 
                     def __init__(self, wires, op_name, id=None):
                         self.__class__.__name__ = op_name
-                        all_wires = qml.wires.Wires(wires)
-                        super().__init__(wires=all_wires, id=id)
+                        super().__init__(wires=wires, id=id)
 
-                    @staticmethod
-                    def compute_decomposition(wires):
-                        op_list = []
-                        op_list.append(qml.QubitUnitary(np.eye(len(wires)), wires=wires))
-                        return op_list
+                    @classmethod
+                    def compute_decomposition(cls, wires):
+                        return [qml.QubitUnitary(np.eye(len(wires)), wires=wires)]
 
-                if len(set_command_wires) == 0:
-                    set_command_wires = range(num_wires)
                 Func(wires=set_command_wires, op_name=command.function)
 
-            # Measurements are a list even if there is a single measurement.
-            # So, second part of this conditional stops measurements from
-            # being applied twice without breaking how other ops are applied.
-            elif command.quantum_or_classical == "quantum" and type(command.code_line) is not list:
+            # Quantum operations
+            elif command.quantum_or_classical == "quantum" and not isinstance(command.code_line, list):
                 qml.apply(command.code_line)
-        return [qml.apply(i) for i in last_command]
 
-    return qml.draw_mpl(circuit, decimals=2)()[0]
+        return [qml.apply(op) for op in last_command]
+
+    fig = qml.draw_mpl(circuit, decimals=2)()[0]
+    plt.close(fig)
+
+    return fig
 
 
 def get_image_bs64_bytecode(img):
@@ -664,7 +666,6 @@ def expand_methods(
                     num_shots,
                     [],
                     all_commands,
-                    show_measurements,
                 )
             )
             arg_vals_child = []
@@ -772,32 +773,86 @@ def newline_cleanup(code):
     newline_num = 0
     open_parentheses = 0
     i = 0
-    for c in code:
+    while i < len(code):
+        c = code[i]
+
         if c == "(":
             open_parentheses += 1
-        if c == ")":
+        elif c == ")":
             open_parentheses -= 1
             if open_parentheses == 0:
-                # Add the newlines back at a safe place so line numbers stay
-                # the same for debugging
+                # Re-insert the newlines that were removed inside parentheses
                 j = code.find("\n", i)
-                code = code[: j + 1] + ("\n" * newline_num) + code[j + 1 :]
+                if j != -1:
+                    code = code[: j + 1] + ("\n" * newline_num) + code[j + 1 :]
                 i += newline_num
                 newline_num = 0
-        if c == "\n" and open_parentheses > 0:
+        elif c == "\n" and open_parentheses > 0:
+            # Remove newlines inside parentheses
             code = code[:i] + code[i + 1 :]
             newline_num += 1
             i -= 1
+
         i += 1
+
+    
+    def collapse_spaces(match):
+        """Normalize whitespace inside a parenthesized expression.
+
+            This helper is intended for use with `re.sub`. Given a regex match
+            representing the contents inside parentheses, it collapses all
+            sequences of whitespace (including newlines and tabs) into a single
+            space and trims leading/trailing spaces.
+
+            Example:
+                Input match: "(a,\n   b,   c)"
+                Output: "(a, b, c)"
+
+        Args:
+            match (re.Match): A regex match object where group(1) contains
+                the inner contents of a parenthesized expression.
+
+        Returns:
+            str: The reconstructed parenthesized string with normalized
+            whitespace.
+        """
+
+        inner = match.group(1)
+        inner = re.sub(r"\s+", " ", inner)  # replace any whitespace with single space
+        return f"({inner.strip()})"
+
+    code = re.sub(r"\((.*?)\)", collapse_spaces, code, flags=re.DOTALL)
+
     return code
 
 
+
 def comment_cleanup(code):
-    """Replace comments from the code with empty lines"""
-    # type 61 indicates that the token is a comment
+    """Replace comments from the code with empty lines
+    
+     Args:
+        code (String): Code to remove comments from
+
+    Returns:
+        String: Code after comments have been removed
+    """
+    # type tokenize.COMMENT indicates that the token is a comment
     tokens = filter(
-        lambda t: t.type == 61, tokenize.tokenize(io.BytesIO(code.encode("utf-8")).readline)
+        lambda t: t.type == tokenize.COMMENT, tokenize.tokenize(io.BytesIO(code.encode("utf-8")).readline)
     )
     for t in tokens:
         code = code.replace(t.string, "")
     return code
+
+def code_cleanup(code):
+    """Cleans up the new line characters inside qml operation parameters and cleans up comments
+
+    Args:
+        code (String): Code to clean up
+
+    Returns:
+        String: Code after new line characters and comments have been removed
+    """
+    newline_cleaned_up_code = newline_cleanup(code)
+    commented_cleaned_up_code = comment_cleanup(newline_cleaned_up_code)
+    return commented_cleaned_up_code
