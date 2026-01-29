@@ -118,7 +118,6 @@ def find_first_qnode_decorator(tokens):
     """
     tokens = list(tokens)
     
-    # TODO: Provide a meaningful error message
     for i, t in enumerate(tokens[:-4]):
         if t.type == tokenize.OP and t.string == "@":
 
