@@ -222,7 +222,7 @@ def get_transform_details(code):
     return transforms_details
 
 
-def get_num_shots(info): #could also be used to return device name (also pennylane specific in terms of object structure)
+def get_num_shots(info):
     """Returns number of shots
 
     Args:
