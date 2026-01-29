@@ -202,6 +202,7 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
       'Content-Type': 'application/json'
     }
 		axios.post('/visualizeCircuit', { 
+			"token": authToken,
 			"session_id": sessionID,
       "policy_accepted": policyAccepted,
 			"timestamp": new Date().getTime(),
