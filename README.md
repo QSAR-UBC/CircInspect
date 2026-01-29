@@ -2,7 +2,7 @@
 [![Ubuntu 22.04](https://img.shields.io/badge/Verified%20on-Ubuntu%2022.04-darkorange?logo=ubuntu)](https://ubuntu.com/)
 [![Fedora 38](https://img.shields.io/badge/Verified%20on-Fedora%2038-blue?logo=fedora)](https://fedoraproject.org/)
 
-[CircInspect](https://circinspect.ece.ubc.ca/) is a quantum debugging tool developed for PennyLane. It provides a visual representation of quantum programs as circuits at various levels of abstraction.  It enables developers to isolate and examine individual quantum circuit components while monitoring changes in program structure and output at breakpoints.  
+The [Quantum Software and Algorithms Research Lab](https://glassnotes.github.io/qsar.html) at UBC introduces [CircInspect](https://circinspect.ece.ubc.ca/), the first visual tool for debugging quantum programs in PennyLane.
 
 ![image](https://github.com/user-attachments/assets/f0a810a5-0d6d-4157-91c9-89afb6f5c2f7)
 
@@ -25,21 +25,9 @@ CircInspect is [freely available online](https://circinspect.ece.ubc.ca/). The i
 
 CircInspect is developed with React for the front-end, while the back-end is powered by Python and Flask. Some UI elements and code editor setup were inspired by the blog "[How to Build a Code Editor with React that Compiles and Executes in 40+ Languages](https://www.freecodecamp.org/news/how-to-build-react-based-code-editor/)", written by [Manu Arora](https://manuarora.in/).  MongoDB is used to track how users interact with the application, specifically to monitor which features they use and how often they engage with different parts of CircInspect.
 
-To install the backend server requirements run
+To install the backend server requirements, go into `CircInspect` directory (project root) and run
 ```
 poetry install
-```
-The following will be installed:
-```
-pennylane = "0.44.0"
-pennylane-catalyst = "0.14.0"
-flask = "^3.1.2"
-google-api-python-client = "^2.188.0"
-google-auth-oauthlib = "^1.2.4"
-pymongo = "^4.16.0"
-dill = "^0.4.1"
-matplotlib = "^3.10.8"
-requests = "^2.32.5"
 ```
 
 To install the frontend server, install Node.js, go into `CircInspect/client` directory and run
@@ -85,6 +73,14 @@ Follow the instructions in [performance_tests/README.md](performance_tests/READM
 CircInsepct is available open source under the Apache 2.0 License. Contributions are welcome. Please follow the instructions in the following link to contribute: [How to contribute?](https://github.com/QSAR-UBC/CircInspect-dev/blob/main/.github/CONTRIBUTING.md)
 
 ## Reference
+The primary developers of CircInspect are Mushahid Khan
+([@mushahidkhan835](https://github.com/mushahidkhan835)) and Cihan Bosnali ([@CihanBosnali](https://github.com/CihanBosnali)).
+
+The authors acknowledge funding from the NSERC CREATE in Quantum Computing
+Program (grant number 543245), NSERC Alliance Quantum, UBC 4YF, and
+UBC WLIURA programs. Thanks to Prashant Nair, QSAR Lab members, and the PennyLane team at Xanadu
+for testing and providing feedback on CircInspect.
+
 If you use CircInspect as part of your workflow, we would appreciate if you cite it using the BibTeX below.
 ```
 @INPROCEEDINGS{10821435,
