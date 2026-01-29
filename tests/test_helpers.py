@@ -113,7 +113,7 @@ def circuit():
     qml.H(0)
     return qml.probs()
 """
-    returned = helpers.get_transform_details(code, 3)
+    returned = helpers.get_transform_details(code)
     assert returned[0][0] == "@cancel_inverses"
 
 

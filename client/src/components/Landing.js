@@ -42,33 +42,46 @@ const javascriptDefault = ``;
 *
 * @param {string} authToken - authentication token for currently logged in user. "NOAUTH" if auth is disabled.
 * @param {string} userEmail - email provided by user in login. "NOAUTH" if auth is disabled.
+
 * @param {string} pennylaneVersion - pennylane version used by the backend. "0.41.0" is used as a placeholder if auth is disabled.
 */
+
+
 const Landing = ({authToken, userEmail, pennylaneVersion}) => {
+
+  // States for user code collection
   const [codeEditorData, setCodeEditorData] = useState('import pennylane as qml\ndev = qml.device("default.qubit", wires=2)\n@qml.qnode(dev)\ndef my_circuit():\n    qml.Hadamard(wires=0)\n    qml.CNOT(wires=[0, 1])\n    return qml.probs()\n\n# Execute a QNode to render a circuit in the righthand pane\nmy_circuit()')
-  const [showLoadingTree, setShowLoadingTree] = useState(false)
-  const [debugStart, setDebugStart] = useState(true)
+  const [code, setCode] = useState(javascriptDefault);
   const [errorInCode, setErrorInCode] = useState([])
 
-  const [code, setCode] = useState(javascriptDefault);
-  const [debuggerMainFcnInfo, setDebuggerMainFcnInfo] = useState([])
+  // States for method tree
+  const [showLoadingTree, setShowLoadingTree] = useState(false)
   const [showLoading, setShowLoading] = useState(false)
-  const [readOnlyFlag, setReadOnlyFlag] = useState(false)
-  const [debugLines, setDebugLines] = useState(new Set())
-  const [line, setLine] = useState(-1)
-  const [imgsrc, setImgSrc] = useState("/defaultImage.png")
-  const [currentFcnInImage, setCurrentFcnInImage] = useState(null)
-  const [transformDetailsForDebugger, setTransformDetailsForDebugger] = useState([])
-  const [transformIndexForDebugger, setTransformIndexForDebugger] = useState(0)
-  const [transformIndiciesSeen, setTransformIndiciesSeen] = useState([])
-  const [theme, setTheme] = useState("cobalt");
-  const [mode, setMode] = useState(ModeOptions[0]);
-  const [initData, setInitData] = useState([])
-  const [circuitDisplayed, setCircuitDisplayed] = useState(-1)
-
   const [expandedMethods, setExpandedMethods] = useState(new Set([0])) 
   const [onlyTransformsToLookAt, setOnlyTransformsToLookAt] = useState(false)
   const [currNode, setCurrNode] = useState(null);
+
+  // States for debugger mode
+  const [debugStart, setDebugStart] = useState(true)
+  const [debuggerMainFcnInfo, setDebuggerMainFcnInfo] = useState([])
+  const [readOnlyFlag, setReadOnlyFlag] = useState(false)
+  const [debugLines, setDebugLines] = useState(new Set())
+  const [line, setLine] = useState(-1)
+  const [transformDetailsForDebugger, setTransformDetailsForDebugger] = useState([])
+  const [transformIndexForDebugger, setTransformIndexForDebugger] = useState(0)
+  const [transformIndiciesSeen, setTransformIndiciesSeen] = useState([])
+
+  // States for circuit visualization
+  const [imgsrc, setImgSrc] = useState("/defaultImage.png")
+  const [currentFcnInImage, setCurrentFcnInImage] = useState(null)
+  const [circuitDisplayed, setCircuitDisplayed] = useState(-1)
+
+  // States for page theme
+  const [theme, setTheme] = useState("cobalt");
+
+  // States for mode and data initialization
+  const [mode, setMode] = useState(ModeOptions[0]);
+  const [initData, setInitData] = useState([])
 
 	// States for breakpoints editor integration
 	const [breaks, setBreaks] = useState([]);
@@ -102,26 +115,28 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
   /**
   * A callback to trigger when user changes modes between real-time and debugger
   *
-  * @param {object} mode - the value is either "Debugger Mode" or "Real-Time Development"
+  * @param {object} mode -
   */
   const onSelectChange = (mode) => {
     setMode(mode);
 
 		if(mode.value == "Debugger Mode"){
-			axios.post('/dc/enterDebuggerMode',
+			axios.post('/dc/enterDebuggerMode', 
 			{
-				"token": authToken,
+				"token": authToken, 
 				"session_id": sessionID,
         "policy_accepted": policyAccepted,
 				"timestamp": new Date().getTime()
 			}, {headers: {'Content-Type': 'application/json'}})
 
 			setImgSrc("/defaultImage.png")
-			setInitData([])
-		} else {
-			axios.post('/dc/enterRealTimeMode',
+			setInitData([]) 
+		} 
+    
+    else {
+			axios.post('/dc/enterRealTimeMode', 
 			{
-				"token": authToken,
+				"token": authToken, 
 				"session_id": sessionID,
         "policy_accepted": policyAccepted,
 				"timestamp": new Date().getTime()
@@ -129,8 +144,8 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
 
 			setImgSrc("/defaultImage.png")
 			setInitData([])  
-			getDataFromBackEnd(codeEditorData)
 
+			getDataFromBackEnd(codeEditorData)
 			setLine(-1)
 			setDebugLines(new Set())
 			setReadOnlyFlag(false)
@@ -180,12 +195,13 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
   const getDataFromBackEnd = (data) => {
     setErrorInCode([])
     setShowLoadingTree(true)
-		// show default image if the entire user code is deleted
+
+    // show default image if the entire user code is deleted
 		if (data.length < 5) {setImgSrc("/defaultImage.png")}
     const headers = {
       'Content-Type': 'application/json'
     }
-		axios.post('/visualizeCircuit', {
+		axios.post('/visualizeCircuit', { 
 			"token": authToken,
 			"session_id": sessionID,
       "policy_accepted": policyAccepted,
@@ -194,7 +210,7 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
 			"mode": mode.value
 		}, {headers: headers}
 		)
-		.then(res => {
+		.then(res => { 
 			if("error" in res["data"]){
 				setErrorInCode(res["data"]["error"])
 				setLine(parseInt(res["data"]["error"][1].split(" ")[2]))
@@ -241,12 +257,8 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
 				"has_children": res["data"]["has_children"]
 			}
 		)
-
-			
 			setInitData(init_data)
 			setShowLoadingTree(false)
-
-
 		})
 		.catch(function (error) {      
 			console.log(error);
@@ -254,6 +266,7 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
 
 		});
 	}
+
 
   /**
   * When codeEditorData changes,
@@ -408,6 +421,7 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [authToken, policyAccepted]);
+
 
   /**
   * Runs when a debugger button is pressed, sends information about
@@ -644,12 +658,15 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
         <div className="px-4 py-2 basis-1/2 flex flex-row">
           <div className="flex flex-row space-x-8 items-start w-ful">
           <ModeDropdown onSelectChange={onSelectChange} />
-          {mode.value == "Debugger Mode" && <button onClick={startDebugger} className="rounded bg-white hover:bg-gray-300 py-2.5 px-8 text-xs transition-colors duration-150 border focus:shadow-outline">{debugStart ? "Start Debugger" : "Stop Debugger"}</button>
+          {mode.value == "Debugger Mode" && <button onClick={startDebugger} className="rounded bg-white hover:bg-gray-300 py-2.5 px-8 text-xs transition-colors duration-150 border focus:shadow-outline">
+            {debugStart ? "Start Debugger" : "Stop Debugger"}</button> 
           }
           {showLoading ? <div role="status" className="py-1"><LoadingIcon/></div> : <div></div>}
 					
 
-		{(mode.value == "Debugger Mode" && !debugStart) ? <div>
+
+    {/* Debugger button function calls */}
+		{(mode.value == "Debugger Mode" && !debugStart) ? <div> 
         <button  
           onClick={() => {debugNext("next_breakpoint")}}
           className="group rounded bg-white hover:bg-gray-300 p-2.5 my-0 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
@@ -729,7 +746,6 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
    <LoadingIcon/> 
 </div>:
             <div className="grid gap-1  w-full ">
-
               <TreeView circuitDisplayed={circuitDisplayed} setCircuitDisplayedMethod={setCircuitDisplayedMethod} removeMethodFromExpandedMethods={removeMethodFromExpandedMethods} checkIfMethodInExpandedMethods={checkIfMethodInExpandedMethods} addMethodToExpandedMethods={addMethodToExpandedMethods} modeValue ={mode.value} currNode = {currNode} currentFcnInImage = {currentFcnInImage} changeCircuitTree= {changeCircuit} data={initData} handleCallback={changeCircuit} deviceName={deviceName} commands={commands} numWires={numWires} numShots={numShots} sessionID={sessionID} authToken={authToken} policyAccepted={policyAccepted}/>
             </div>
     )}
@@ -768,7 +784,7 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
 </ul>
 <p className="mb-2 text-justify">This data helps us understand how users engage with the debugger, what they consider to be bugs, and how they approach the debugging process. The collected information is used for both tool improvement and research on quantum debugging methodologies. This is part of a University of British Columbia study. The primary investigator for this project is Professor Olivia Di Matteo from the Department of Electrical and Computer Engineering. The email address of Olivia is olivia@ece.ubc.ca. The email address of the co-investigator, Mushahid Khan, is mkhan103@student.ubc.ca. If you have any concerns or complaints about your rights as a research participant and/or your experiences while participating in this study, contact the Research Participant Complaint Line in the UBC Office of Research Ethics at 604-822-8598 or if long distance e-mail RSIL@ors.ubc.ca or call toll free 1-877-822-8598.</p>
 <p className="mb-2 text-justify">By clicking on “I accept”, you acknowledge and agree to this data collection. We do not collect any personally identifiable information, and all data is used solely for research and development purposes. If you click on “I reject”, then we will not be collecting any data.
-</p>
+</p> 
 </div>
 		<div className="mt-4">
 		<button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-8 rounded ml-4" onClick={()=>{setPolicyAccepted(true); setShowPolicy(false)}}>I accept</button>

@@ -30,7 +30,7 @@ import requests
 from server import helpers
 import pennylane as qml
 
-matplotlib.use("Agg")
+
 
 
 EXEC_SERVER_URL = "http://localhost:5001"
@@ -140,7 +140,7 @@ def create_app(test_config={}):
                 "TESTMODE", False
             ):
                 return Response(status=401)
-            (commands, annotated_queue) = pickle.loads(bytes.fromhex(body["commands"]))
+            (commands, annotated_queue) = pickle.loads(bytes.fromhex(body["commands"])) 
             device_name = body["device_name"]
             identifier = body["id"]
             num_wires = body["num_wires"]
@@ -308,7 +308,6 @@ def create_app(test_config={}):
                         num_shots,
                         commands[-1].code_line,
                         commands,
-                        real_time=False,
                     )
                 )
                 debug_index = -1
@@ -331,14 +330,13 @@ def create_app(test_config={}):
                         num_shots,
                         commands[-1].code_line,
                         commands,
-                        real_time=False,
                     )
                 )
                 line_number_to_highlight = str(commands[debug_index].line_number)
             if debug_index == -1:
                 debug_index = len(commands)
             exec_time = time.time()
-            circuit_output = helpers.run_pennylane_commands(
+            circuit_output = helpers.run_pennylane_commands( 
                 commands[:-1],
                 device_name,
                 num_wires,
@@ -355,11 +353,11 @@ def create_app(test_config={}):
                     break
 
             process_end_time = time.time()
-            # remove exec times from processing time
+ 
             processing_time = process_end_time - process_start_time
             for n in exec_time_list:
                 processing_time -= n
-            # Send data back to user
+
             return jsonify(
                 {
                     "name": commands[0].function,
