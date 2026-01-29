@@ -38,12 +38,15 @@ import re
 
 multiprocessing.set_start_method("fork", force=True)
 
-def create_app(test_config=None):
+def create_app():
     """Main flask application builder function. 
         Flask application creates the child process 
         where the user's code gets executed and 
         returns execution data to server
 
+    Args:
+        test_config:
+    
     Returns:
         flask application
     """
@@ -86,7 +89,6 @@ def create_app(test_config=None):
         return Response(status=400)
 
     return app
-
 
 def process_code(code, conn):
     """Execute and process the user code to extract commands and
@@ -210,12 +212,10 @@ def process_code(code, conn):
         )
     )
 
-
 def initialize_resource_limits():
     """Initialize resource limits"""
     soft_limit, hard_limit = resource.getrlimit(resource.RLIMIT_AS)
     resource.setrlimit(resource.RLIMIT_AS, (2147483648, hard_limit))  # 2GB
-
 
 def get_trace(code):
     """Execute user code and trace the result to get more information
@@ -242,7 +242,6 @@ def get_trace(code):
         return [exceptionarray[0], line_num], 0
     return trace, time.time() - exec_time_start
 
-
 def get_wires(annotated_queue):
     """Get the wires used in the code
 
@@ -260,7 +259,6 @@ def get_wires(annotated_queue):
 
     return set_wires
 
-
 def get_transform_results_after_uncommenting_transforms(
     commands, code, code_received_transforms_commented_arr, exec_time_list, main_fcn_output
 ):
@@ -277,9 +275,7 @@ def get_transform_results_after_uncommenting_transforms(
         Array: qnode output and visualization after uncommenting transforms
     """
     transform_results_after_uncommenting_transforms = []
-    transform_names_and_line_numbers = helpers.get_transform_details(
-        code
-    )
+    transform_names_and_line_numbers = helpers.get_transform_details(code)
     i = len(transform_names_and_line_numbers) - 1
 
     while i >= 0:
@@ -316,8 +312,6 @@ def get_transform_results_after_uncommenting_transforms(
 
     return transform_results_after_uncommenting_transforms
 
-
-
 def add_image_commands_to_code_array(code_received_transforms_commented_arr, commands):
     """Add image commands to code array
 
@@ -344,8 +338,6 @@ def add_image_commands_to_code_array(code_received_transforms_commented_arr, com
             code_received_transforms_commented_arr.append(img_command)
             break
         i -= 1
-
-
 
 def get_information_of_subroutines(
     commands_to_execute_for_identifier, commands, device_name, num_wires, num_shots
@@ -400,8 +392,6 @@ def get_information_of_subroutines(
             )
     return children_fcn_calls
 
-
-
 def get_argument_information(commands):
     """Get argument information for qnode
 
@@ -421,8 +411,6 @@ def get_argument_information(commands):
         arg_vals = None
 
     return arg_vals
-
-
 
 def remove_exection_time_from_processing_time(exec_time_list, process_start_time, process_end_time):
     """Remove exec times from processing time
