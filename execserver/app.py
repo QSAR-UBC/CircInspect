@@ -43,9 +43,6 @@ def create_app():
         Flask application creates the child process 
         where the user's code gets executed and 
         returns execution data to server
-
-    Args:
-        test_config:
     
     Returns:
         flask application
