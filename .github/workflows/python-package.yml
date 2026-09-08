@@ -40,13 +40,6 @@ jobs:
           poetry --version
           poetry install
 
-#      TODO: update this later with project-specific commands
-#      - name: Check linting and formatting with ruff
-#        run: |
-#          poetry run ruff check ionizer/*.py tests/*.py
-
-      # tests/README.md's "Running Tests" step 1, reproduced here: start the
-      # sandbox server the tests talk to over HTTP.
       - name: Start CircInspect server
         run: |
           poetry run python -m server.sandbox.sandbox_server &

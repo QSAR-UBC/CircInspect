@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "circinspect-dev"
-version = "0.1.0"
+name = "circinspect"
+version = "0.2.0"
 description = ""
 authors = ["UBC Quantum Software and Algorithms Research Lab"]
 readme = "README.md"

@@ -2,38 +2,42 @@
 [![Ubuntu 22.04](https://img.shields.io/badge/Verified%20on-Ubuntu%2022.04-darkorange?logo=ubuntu)](https://ubuntu.com/)
 [![Fedora 38](https://img.shields.io/badge/Verified%20on-Fedora%2038-blue?logo=fedora)](https://fedoraproject.org/)
 
-The [Quantum Software and Algorithms Research Lab](https://glassnotes.github.io/qsar.html) at UBC introduces [CircInspect](https://circinspect.ece.ubc.ca/), the first visual tool for debugging quantum programs in PennyLane.
-
-CircInspect offers adaptive visualization of quantum circuits, enabling you to explore your quantum programs at varying levels of abstraction. You can zoom into subroutines, trace program outputs, and set breakpoints to isolate the source of a bug.
+[CircInspect](https://circinspect.ece.ubc.ca/) is a visual tool for debugging quantum programs in PennyLane, developed by the [Quantum Software and Algorithms Research Lab](https://glassnotes.github.io/qsar.html) at UBC. It offers adaptive visualization of quantum circuits, enabling you to explore your quantum programs at varying levels of abstraction. You can zoom into subroutines, trace program outputs, and set breakpoints to isolate the source of a bug.
 
 ## How to get started with CircInspect
 
+You can try CircInspect right away [online](https://circinspect.ece.ubc.ca/), or install it locally (see [Installation](#installation) below).
+
 CircInspect visualizes the structure of your circuit and updates it dynamically as you type, providing immediate feedback and deeper insight into how code translates into quantum circuits, and also includes an integrated debugger for monitoring structural and behavioural changes at breakpoints.
 
-We are researching how quantum developers debug their programs and CircInspect is a part of that effort. If you're building algorithms with PennyLane, please give it a try and send us your feedback.
+To use CircInspect, write PennyLane code containing a single QNode execution and paste or type it into the editor.
 
+<img width="1918" height="926" alt="LiveDemo" src="https://github.com/user-attachments/assets/1971edea-e77c-42aa-a750-d331c0857815" />
 
 With the debugger, you can isolate and examine individual quantum circuit components while monitoring changes in program structure and output at breakpoints. To set a breakpoint, click on the line number. You can then click "Start Debugger" and use the buttons to step through your code.
 
 <img width="1918" height="926" alt="image" src="https://github.com/user-attachments/assets/8fee62e4-3cd3-4aa8-be69-05b62f2cb7db" />
 
 
-You can selectively observe inputs to subroutines and main circuit output by using the tree structure of commands under the circuit visualization. Click on the full screen button and click on one of the nodes to create a pop up with additional information. To see the output of the qnode, click on the top-most node of the command tree structure to see the output in the side panel popup, alternatively, you can hover over the same top-most node. 
+You can selectively observe inputs to subroutines and main circuit output by using the tree structure of commands under the circuit visualization. Click on the full screen button and click on one of the nodes to create a pop up with additional information. To see the output of the QNode, click on the top-most node of the command tree structure to see the output in the side panel popup. Alternatively, you can hover over the same top-most node. 
+
 <img width="1918" height="926" alt="image" src="https://github.com/user-attachments/assets/9ac50b88-1d7e-44d8-a4ad-239c2a9799af" />
 <img width="1918" height="926" alt="image" src="https://github.com/user-attachments/assets/3ecee8f1-63cb-4ef2-9e5f-e8fe59fca10b" />
 
 
-When using mid-circuit measurements, you can choose a postselect value for each mid-circuit measurement while the deugger is inactive. This will allow you to simulate the effect of postselection on the output of the circuit. To do so, click the fullscreen button on the command tree structure and click on the mid-circuit measurement node you want to apply a postselection value to. 
+You can also postselect on mid-circuit measurement values while the debugger is inactive. This will allow you to simulate the effect of postselection on the output of the circuit. To do so, click the fullscreen button on the command tree structure and click on the mid-circuit measurement node you want to apply a postselection value to. 
+
 <img width="1918" height="926" alt="PostSelectionDemo" src="https://github.com/user-attachments/assets/8f191fe4-fca4-474d-8ce1-84bf0eecead7" />
 
+### Working with transforms
 
+If your QNode has one or more [PennyLane transforms](https://docs.pennylane.ai/en/stable/code/qml_transforms.html) applied to it (built-in transforms such as `qp.transforms.merge_rotations`, or your own custom transform defined with `@qp.transform`), CircInspect shows a transform timeline next to the circuit visualization while the debugger is inactive. The timeline has a step for "Base" (your circuit before any transforms) followed by one step per transform, in the order they're applied. Click or drag along the timeline to see the circuit as it looks at each stage of the transform pipeline. The timeline is locked while a debugging session is active.
 
+Only transforms applied as decorators (e.g. `@qp.transforms.merge_rotations` above your `@qp.qnode` decorator) are picked up. Transforms applied inline (e.g. `circuit = qp.transforms.merge_rotations(circuit)`) are not detected and won't appear on the timeline.
 
-CircInspect will dynamically update the quantum circuit visualization as the code is modified, even while a debugging session isn't active.
-<img width="1918" height="926" alt="LiveDemo" src="https://github.com/user-attachments/assets/1971edea-e77c-42aa-a750-d331c0857815" />
+<img width="1918" height="926" alt="transforms_recording_circinspect" src="https://github.com/user-attachments/assets/0aac9853-2bde-47f2-aea1-cacd0edd7340" />
 
-
-
+We are researching how quantum developers debug their programs and CircInspect is a part of that effort. If you're building algorithms with PennyLane, please give it a try and send us your feedback.
 
 
 ## Installation
@@ -43,6 +47,13 @@ CircInspect is [freely available online](https://circinspect.ece.ubc.ca/). The i
 CircInspect is developed with React for the front-end, while the back-end is powered by Python and Flask. Some UI elements and code editor setup were inspired by the blog "[How to Build a Code Editor with React that Compiles and Executes in 40+ Languages](https://www.freecodecamp.org/news/how-to-build-react-based-code-editor/)", written by [Manu Arora](https://manuarora.in/).
 
 This is the public, local-only version of CircInspect: everything runs on your own machine, with no Docker, database, or authentication required.
+
+### Requirements
+
+- Python 3.14, managed via [Poetry](https://python-poetry.org/)
+- Node.js and npm, use an older/LTS release (e.g. 22.x or 24.x) rather than the newest available version
+
+CircInspect works on Linux (verified on Ubuntu 22.04 and Fedora 38, see badges above), macOS, and WSL.
 
 To install the backend server requirements, go into `CircInspect` directory (project root) and run
 ```
@@ -64,6 +75,14 @@ poetry run python -m server.sandbox.sandbox_server
 2. On the second one, go into `CircInspect/client` directory and run
 ```
 npm start
+```
+
+## Troubleshooting
+
+**`npm start` fails with `Invalid options object ... options.allowedHosts[0] should be a non-empty string`:**
+This is a known issue in `react-scripts`' dev server setup. Work around it by running:
+```
+DANGEROUSLY_DISABLE_HOST_CHECK=true npm start
 ```
 
 ## Development and Testing 

@@ -1,3 +1,4 @@
+# This Shor's algorithm code was inspired by the work in https://github.com/QSAR-UBC/shortalyst
 import pennylane as qp
 import numpy as jnp
 import jax
