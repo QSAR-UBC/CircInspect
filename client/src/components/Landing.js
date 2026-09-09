@@ -62,7 +62,6 @@ import { MarkGithubIcon } from '@primer/octicons-react'
  *
  * The main page where all the action happens.
  *
- * @param {string} userEmail - email provided by user in login. "NOAUTH" since auth is disabled.
  * @param {string} pennylaneVersion - pennylane version used by the backend.
  */
 
@@ -81,7 +80,7 @@ my_circuit()`;
 
 const POST_SELECT_ERROR_MSG = "Invalid state: Post-selected measurement probability is 0";
 
-const Landing = ({ userEmail, pennylaneVersion }) => {
+const Landing = ({ pennylaneVersion }) => {
   // Identifies this tab to the backend so its debug state doesn't collide with other open tabs
   const [sessionId] = useState(() => crypto.randomUUID());
 

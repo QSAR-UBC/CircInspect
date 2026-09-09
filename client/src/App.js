@@ -19,7 +19,6 @@ import Landing from "./components/Landing";
 
 
 function App() {
-	const [userEmail] = useState("NOAUTH");
 	const [pennylaneVersion, setPennylaneVersion] = useState("unknown");
 
 	useEffect(() => {
@@ -28,7 +27,7 @@ function App() {
 		});
 	}, []);
 
-	return <Landing userEmail={userEmail} pennylaneVersion={pennylaneVersion} />;
+	return <Landing pennylaneVersion={pennylaneVersion} />;
 }
 
 export default App;
