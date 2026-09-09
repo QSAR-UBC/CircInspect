@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ distance
 """
 
 import time
-from helpers import debug_circuit
+from helpers import _make_session_id, debug_output_timed, prepare_debug
 
 RERUNS_PER_CASE = 10
 MIN_DIST = 10
@@ -27,30 +27,35 @@ MAX_DIST = 200
 
 def test_generator(num_lines):
     code = """
-import pennylane as qml
-dev = qml.device("default.qubit", wires=1)
-@qml.qnode(dev)
+import pennylane as qp
+dev = qp.device("default.qubit", wires=1)
+@qp.qnode(dev)
 def circuit():"""
     for _ in range(num_lines):
         code += """
-    qml.Hadamard(wires=0)"""
+    qp.Hadamard(wires=0)"""
     code += """
-    return qml.probs()
+    return qp.probs()
 circuit()
 """
     return code
 
 
-with open("breakpoint_distance_results_" + str(time.time()) + ".csv", "w") as results_file:
-    results_file.write(
-        "Breakpoint Distance,Total Processing Time(s),CircInspect Functionality Time(s)\n"
-    )
+def run():
+    session_id = _make_session_id()
     code = test_generator(MAX_DIST)
-    for dist in range(MIN_DIST, MAX_DIST, 10):
-        print("Starting run, dist:", dist)
-        for i in range(RERUNS_PER_CASE):
-            processing_time, no_exec_time = debug_circuit(code, dist)
-            if processing_time > 0:
-                results_file.write(
-                    str(dist) + "," + str(processing_time) + "," + str(no_exec_time) + "\n"
-                )
+    prepare_debug(code, session_id)
+    with open("breakpoint_distance_results_" + str(time.time()) + ".csv", "w") as results_file:
+        results_file.write("breakpoint_distance,total_time,processing_time,execution_time\n")
+        for dist in range(MIN_DIST, MAX_DIST, 10):
+            print("Starting run, dist:", dist)
+            for i in range(RERUNS_PER_CASE):
+                result = debug_output_timed(session_id, dist)
+                if result is not None:
+                    results_file.write(
+                        f"{dist},{result['total']},{result['processing']},{result['execution']}\n"
+                    )
+
+
+if __name__ == "__main__":
+    run()

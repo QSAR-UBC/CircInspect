@@ -1,4 +1,4 @@
-// Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+// Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,14 +24,11 @@ import React from "react";
 */
 const OutputWindow = ({ imgsrc, isError }) => {
   return (
-    <>
-      <h1 className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 mb-2">
-        Quantum Circuit
-      </h1>
-      <div  style={{width: "auto"}} className={"bg-white h-96 border-2 resize-y rounded-md text-white font-normal text-sm overflow-y-auto " + (isError ? "border-red-700" : "border-black")}> 
-        <img src={imgsrc} style={{maxWidth: "none", height:"100%"}} alt={"Quantum Circuit Visualization"}/>
+    <div className="flex flex-col h-full">
+      <div className={"bg-white h-full border-2 rounded-md overflow-hidden " + (isError ? "border-red-700" : "border-black")}>
+        <img src={imgsrc} className="w-full h-full object-contain" alt={"Quantum Circuit Visualization"} />
       </div>
-    </>
+    </div>
   );
 };
 

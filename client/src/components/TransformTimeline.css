@@ -1,0 +1,177 @@
+/* Copyright 2026 UBC Quantum Software and Algorithms Research Lab
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License. */
+  
+.timelineContainer {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  background: #111;
+  border-left: 1px solid #222;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.timelineContainer.vertical {
+  width: 50px;
+  height: 100%;
+}
+
+.timelineHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.timelineTitle {
+  font-size: 9px;
+  font-weight: 800;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+}
+
+.currentLevelBadge {
+  background: #1a1a1a;
+  color: #22c55e;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 900;
+  border: 1px solid #22c55e33;
+  box-shadow: inset 0 0 5px rgba(34, 197, 94, 0.1);
+}
+
+.trackWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  flex: 1;
+}
+
+.mainTrack {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background: #222;
+  border-radius: 1px;
+}
+
+.activeTrack {
+  position: absolute;
+  width: 2px;
+  background: linear-gradient(135deg, #004d38, #003f2c);
+  border-radius: 1px;
+  transition: all 0.2s ease;
+  top: 0;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+}
+
+.stepContainer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
+}
+
+.stepDot {
+  width: 10px;
+  height: 10px;
+  background: #111;
+  border: 2px solid #333;
+  border-radius: 50%;
+  z-index: 2;
+  transition: all 0.2s ease;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  left: 50%;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.stepDot.active {
+  background: #22c55e;
+  border-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.stepDot.passed {
+  background: #15803d;
+  border-color: #15803d;
+  opacity: 0.8;
+}
+
+.stepLabel {
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  transform: translateY(-50%) translateX(-100%);
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  color: #888;
+  background: #111;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #22c55e33;
+  white-space: nowrap;
+  opacity: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.stepDot:hover .stepLabel {
+  opacity: 1;
+  transform: translateY(-50%) translateX(-115%);
+  color: #22c55e;
+  background: #1a1a1a;
+}
+
+.thumb {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border-radius: 3px;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  left: 50%;
+  cursor: grab;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+  transition: top 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.thumb:hover .stepLabel {
+  opacity: 1;
+  transform: translateY(-50%) translateX(-115%);
+  color: #22c55e;
+  background: #1a1a1a;
+}
+
+.thumbInner {
+  display: none;
+}

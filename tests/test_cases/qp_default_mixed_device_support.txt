@@ -1,0 +1,10 @@
+import pennylane as qp
+
+dev = qp.device("default.mixed", wires=1)
+
+@qp.qnode(dev)
+def my_function():
+    qp.PauliX(wires=0)
+    return qp.probs()
+
+my_function()

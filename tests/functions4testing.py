@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,15 +16,15 @@
 
 import json
 import time
-import random
-import string
 
 
-def visCircuit(client, code):
+def visCircuit(client, code, postselect_overrides=None):
     """Run a visualizeCircuit API call on the test server
     Args:
         client: Flask test client
         code (string): user code
+        postselect_overrides (dict{string: int}): mapping of mid circuit
+            measurement id -> postselect value (0 or 1), if any
     Returns:
         A dict of data returned from the test server
     """
@@ -33,14 +33,8 @@ def visCircuit(client, code):
         data=json.dumps(
             {
                 "data": code,
+                "postselect_overrides": postselect_overrides or {},
                 "timestamp": time.time(),
-                "session_id": (
-                    "TEST_"
-                    + str(time.time())
-                    + "".join(random.choices(string.ascii_letters + string.digits, k=9))
-                ),
-                "token": "TESTUSER",
-                "policy_accepted": True,
             }
         ),
     )

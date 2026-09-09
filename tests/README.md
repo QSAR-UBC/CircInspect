@@ -1,9 +1,9 @@
 # Tests
 
 # Running Tests
-1. Run the code execution server on port 5001 by running this command inside `CircInspect/` directory:
+1. Run the sandbox server by running this command inside `CircInspect/` directory:
 ```
-  poetry run flask --app execserver.app run --debug --port=5001
+  poetry run python -m server.sandbox.sandbox_server
 ```
 2. Run all automated tests using Pytest by running this command inside `CircInspect/tests` directory:
 ```

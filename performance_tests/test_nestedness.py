@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,13 @@
 
 """
 An experiment to characterize how execution time is affected by
-the nestedness of subroutines in the user code
+the nestedness of subroutines in the user code, independent of gate
+count/circuit depth.
 """
+import textwrap
 import time
-from helpers import visCircuit
 
+from helpers import vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 MIN_CALLS = 10  # required to be at least 1
@@ -26,46 +28,39 @@ MAX_CALLS = 200
 
 
 def test_generator(num_calls):
-    code = """
-import pennylane as qml
-def f0():
-    qml.Hadamard(wires=0)
-"""
-    for i in range(1, num_calls):
-        code += (
-            """
-def f"""
-            + str(i)
-            + """():
-    f"""
-            + str(i - 1)
-            + """()
-"""
-        )
-    code += (
-        """
-dev = qml.device("default.qubit", wires=1)
-@qml.qnode(dev)
-def circuit():
-    f"""
-        + str(num_calls - 1)
-        + """()
-    return qml.probs()
-circuit()
-"""
-    )
-    return code
+    funcs = ["def f0():\n    pass"]
+    funcs += [f"def f{i}():\n    f{i - 1}()" for i in range(1, num_calls)]
+    func_defs = "\n\n".join(funcs)
+
+    return textwrap.dedent("""\
+        import pennylane as qp
+
+        {func_defs}
 
 
-with open("nestedness_results_" + str(time.time()) + ".csv", "w") as results_file:
-    results_file.write("nestedness,s_total,s_processing_no_exec\n")
-    for num_calls in range(MIN_CALLS, MAX_CALLS, 10):
-        print("Starting run, nestedness:", num_calls)
-        for i in range(RERUNS_PER_CASE):
-            start = time.time()
-            processing_time = visCircuit(test_generator(num_calls))
-            end = time.time()
-            if processing_time > 0:
-                results_file.write(
-                    str(num_calls) + "," + str(end - start) + "," + str(processing_time) + "\n"
-                )
+        dev = qp.device("default.qubit", wires=1)
+
+
+        @qp.qnode(dev)
+        def circuit():
+            f{last}()
+            return qp.probs()
+        circuit()
+    """).format(func_defs=func_defs, last=num_calls - 1)
+
+
+def run():
+    with open(f"nestedness_results_{time.time()}.csv", "w") as results_file:
+        results_file.write("nestedness,total_time,processing_time,execution_time\n")
+        for num_calls in range(MIN_CALLS, MAX_CALLS, 10):
+            print("Starting run, nestedness:", num_calls)
+            for _ in range(RERUNS_PER_CASE):
+                result = vis_circuit_timed(test_generator(num_calls))
+                if result is not None:
+                    results_file.write(
+                        f"{num_calls},{result['total']},{result['processing']},{result['execution']}\n"
+                    )
+
+
+if __name__ == "__main__":
+    run()

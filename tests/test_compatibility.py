@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,32 +29,32 @@ def test_numpy_array_in_params(client):
         assert visCircuit(client, f.read()).get("error", None) is None
 
 
-def test_qml_devices_subpackage(client):
-    """Device initialization can be done as qml.devices.DeviceName instead
-    of usual qml.device("device.name"). This test confirms that the app
-    is compatible with initializing devices using qml.devices subpackage.
+def test_qp_devices_subpackage(client):
+    """Device initialization can be done as qp.devices.DeviceName instead
+    of usual qp.device("device.name"). This test confirms that the app
+    is compatible with initializing devices using qp.devices subpackage.
     """
-    with open("test_cases/qml_devices_subpackage.txt", "r") as f:
+    with open("test_cases/qp_devices_subpackage.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None
 
 
-def test_qml_device_no_wires(client):
+def test_qp_device_no_wires(client):
     """Pennylane allows users to initialize a device without specifying wires.
     Initial implementation of this app looked at the device initialization
     for the number of wires. Current implementation looks at all operations
     and the wires they act on.
     """
-    with open("test_cases/qml_device_no_wires.txt", "r") as f:
+    with open("test_cases/qp_device_no_wires.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None
 
 
-def test_qml_device_no_wires_2(client):
+def test_qp_device_no_wires_2(client):
     """This is a more complicated version of no wires test. A naive bugfix
     of the first one fails this because more functinality is dependent
     on the number of wires being specified. Current implementation finds
     the total number of wires if it is not specified.
     """
-    with open("test_cases/qml_device_no_wires_2.txt", "r") as f:
+    with open("test_cases/qp_device_no_wires_2.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None
 
 
@@ -74,17 +74,17 @@ def test_midcircuit_measure(client):
     not supported by pickle. Using dill instead of pickle for serialization
     fixed the issue.
     """
-    with open("test_cases/qml_midcircuit_measure.txt", "r") as f:
+    with open("test_cases/qp_midcircuit_measure.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None
 
 
-def test_qml_default_mixed_device_support(client):
+def test_qp_default_mixed_device_support(client):
     """Confirm that default.mixed device does not result in no visualization"""
-    with open("test_cases/qml_default_mixed_device_support.txt", "r") as f:
+    with open("test_cases/qp_default_mixed_device_support.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None
 
 
-def test_qml_default_qutrit_device_support(client):
+def test_qp_default_qutrit_device_support(client):
     """Confirm that default.qutrit device does not result in no visualization"""
-    with open("test_cases/qml_default_qutrit_device_support.txt", "r") as f:
+    with open("test_cases/qp_default_qutrit_device_support.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None

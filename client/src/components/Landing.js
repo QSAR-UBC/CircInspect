@@ -1,4 +1,4 @@
-// Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+// Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,103 +12,138 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// External Libraries
 import React, { useEffect, useState } from "react";
-        
 import axios from "axios";
-import { ModeOptions } from "../constants/ModeOptions";
-
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-
-import { defineTheme } from "../lib/defineTheme";
-import OutputWindow from "./OutputWindow";
-
-import ModeDropdown from "./ModeDropdown";
-import ReportBugForm from "./ReportBugForm";
-import TreeView from "./Tree";
-import { ContinueIcon, ReverseContinueIcon, StepOverIcon, StepIntoIcon, StepOutIcon, RestartIcon, LoadingIcon } from "./Icons"
-
+import { ToastContainer } from "react-toastify";
 import Rodal from "rodal";
-import 'rodal/lib/rodal.css';
+import "react-toastify/dist/ReactToastify.css";
+import "rodal/lib/rodal.css";
 
-import Qeditor from '../lib/Qeditor.jsx'
+// Internal Utilities
+import { defineTheme } from "../lib/defineTheme";
 
-const javascriptDefault = ``;
+// Helpers
+import { getSubtreeForLevel } from "../helpers/graphHelpers";
+
+// Components
+import OutputWindow from "./OutputWindow";
+import Header from "./Header";
+import {
+  getNextBreakpointState,
+  getPrevBreakpointState,
+  getStepOverState,
+  getStepIntoState,
+  getStepOutState,
+  getRestartState,
+  getCircuitOutputandImg
+} from "../hooks/DebuggerControls";
+import { flattenGraphNodes } from "../hooks/DebuggerUtils";
+import CommandTreeGraph from "./CommandTree.js";
+import TransformTimeline from "./TransformTimeline.js";
+import InfoPopup from "./InfoPopup.js";
+import Qeditor from "../lib/Qeditor.jsx";
+import {
+  ContinueIcon,
+  ReverseContinueIcon,
+  StepOverIcon,
+  StepIntoIcon,
+  StepOutIcon,
+  StepIntoIconDisabled,
+  StepOutIconDisabled,
+  RestartIcon,
+  LoadingIcon,
+  ClearBreakpointsIcon,
+} from "./Icons";
+import { MarkGithubIcon } from '@primer/octicons-react'
 
 /**
-* Landing
-*
-* The main page where all the action happens.
-*
-* @param {string} authToken - authentication token for currently logged in user. "NOAUTH" if auth is disabled.
-* @param {string} userEmail - email provided by user in login. "NOAUTH" if auth is disabled.
+ * Landing
+ *
+ * The main page where all the action happens.
+ *
+ * @param {string} pennylaneVersion - pennylane version used by the backend.
+ */
 
-* @param {string} pennylaneVersion - pennylane version used by the backend. "0.41.0" is used as a placeholder if auth is disabled.
-*/
+const DEFAULT_CODE = `import pennylane as qp
 
+dev = qp.device("default.qubit")
 
-const Landing = ({authToken, userEmail, pennylaneVersion}) => {
+@qp.qnode(dev)
+def my_circuit():
+    qp.Hadamard(wires=0)
+    qp.CNOT(wires=[0, 1])
+    return qp.probs()
 
-  // States for user code collection
-  const [codeEditorData, setCodeEditorData] = useState('import pennylane as qml\ndev = qml.device("default.qubit", wires=2)\n@qml.qnode(dev)\ndef my_circuit():\n    qml.Hadamard(wires=0)\n    qml.CNOT(wires=[0, 1])\n    return qml.probs()\n\n# Execute a QNode to render a circuit in the righthand pane\nmy_circuit()')
-  const [code, setCode] = useState(javascriptDefault);
-  const [errorInCode, setErrorInCode] = useState([])
+# Execute a QNode to render a circuit in the righthand pane
+my_circuit()`;
 
-  // States for method tree
-  const [showLoadingTree, setShowLoadingTree] = useState(false)
-  const [showLoading, setShowLoading] = useState(false)
-  const [expandedMethods, setExpandedMethods] = useState(new Set([0])) 
-  const [onlyTransformsToLookAt, setOnlyTransformsToLookAt] = useState(false)
-  const [currNode, setCurrNode] = useState(null);
+const POST_SELECT_ERROR_MSG = "Invalid state: Post-selected measurement probability is 0";
 
-  // States for debugger mode
-  const [debugStart, setDebugStart] = useState(true)
-  const [debuggerMainFcnInfo, setDebuggerMainFcnInfo] = useState([])
-  const [readOnlyFlag, setReadOnlyFlag] = useState(false)
-  const [debugLines, setDebugLines] = useState(new Set())
-  const [line, setLine] = useState(-1)
-  const [transformDetailsForDebugger, setTransformDetailsForDebugger] = useState([])
-  const [transformIndexForDebugger, setTransformIndexForDebugger] = useState(0)
-  const [transformIndiciesSeen, setTransformIndiciesSeen] = useState([])
+const Landing = ({ pennylaneVersion }) => {
+  // Identifies this tab to the backend so its debug state doesn't collide with other open tabs
+  const [sessionId] = useState(() => crypto.randomUUID());
 
-  // States for circuit visualization
-  const [imgsrc, setImgSrc] = useState("/defaultImage.png")
-  const [currentFcnInImage, setCurrentFcnInImage] = useState(null)
-  const [circuitDisplayed, setCircuitDisplayed] = useState(-1)
+  // Code editor state
+  const [codeEditorData, setCodeEditorData] = useState(DEFAULT_CODE);
+  const [code, setCode] = useState("");
+  const [errorInCode, setErrorInCode] = useState([]);
 
-  // States for page theme
+  // Debugger state
+  const [debuggerActive, setDebuggerActive] = useState(false);
+  const [readOnlyFlag, setReadOnlyFlag] = useState(false);
+  const [breakpointLines, setBreakpointLines] = useState(new Set());
+  const [line, setLine] = useState(-1);
+  const [showLoading, setShowLoading] = useState(false);
+
+  // Circuit visualization state
+  const [imgsrc, setImgSrc] = useState("/defaultImage.png");
+
+  // Theme state
   const [theme, setTheme] = useState("cobalt");
 
-  // States for mode and data initialization
-  const [mode, setMode] = useState(ModeOptions[0]);
-  const [initData, setInitData] = useState([])
+  // Breakpoints state
+  const [breaks, setBreaks] = useState([]);
 
-	// States for breakpoints editor integration
-	const [breaks, setBreaks] = useState([]);
- 
-	// States for API config
-	const [deviceName, setDeviceName] = useState("");
-	const [commands, setCommands] = useState("");
-	const [debugIndex, setDebugIndex] = useState(-1);
-	const [numWires, setNumWires] = useState(null);
-	const [numShots, setNumShots] = useState(null);
+  // API / backend config state
+  const [deviceName, setDeviceName] = useState("");
+  const [commands, setCommands] = useState("");
+  const [debugIndex, setDebugIndex] = useState(-1);
+  const [transformStack, setTransformStack] = useState([]);
+  const [currentTransform, setCurrentTransform] = useState(-1);
+  const [currentTransformIdx, setCurrentTransformIdx] = useState(1);
+  const [numWires, setNumWires] = useState(null);
+  const [numShots, setNumShots] = useState(null);
 
-	// States for data collection
-	const [sessionID, setSessionID] = useState(null);
-
-	// States for versions
-	const [circInspectVersion, setCircInspectVersion] = useState("0.1.1")
-	const [showLibraries, setShowLibraries] = useState(false)
+  // Version / library state
+  const [circInspectVersion] = useState("0.2.0");
+  const [showLibraries, setShowLibraries] = useState(false);
   const [availableLibraries, setAvailableLibraries] = useState([]);
 
+  // Graph / transform state
+  const [graphData, setGraphData] = useState(null);
+  const [fullGraphData, setFullGraphData] = useState(null);
+  const [displayTransformLevel, setDisplayTransformLevel] = useState(0);
+  const displayTransformLevelRef = React.useRef(0);
+  const [showLoadingTree, setShowLoadingTree] = useState(false);
+  const [presentTransforms, setPresentTransforms] = useState([]);
+  const [activeTransforms, setActiveTransforms] = useState(null);
+  const activeTransformsRef = React.useRef(null);
+  const prevPresentTransformsRef = React.useRef([]);
 
-  // States for data collection policy
-  const [showPolicy, setShowPolicy] = useState(true)
-  const [policyAccepted, setPolicyAccepted] = useState(false)
+  // Mid-circuit measurement postselect state
+  const [postSelectOverrides, setPostSelectOverrides] = useState({});
+  const postSelectOverridesRef = React.useRef({});
+  const prevPostSelectOverridesRef = React.useRef({});
 
+  // Effects
+
+  /** Fetch available library versions and set the theme on mount, then run
+   * the default circuit once. */
   useEffect(() => {
-    axios.get("/library_version")
-      .then(res => {
+    axios
+      .get("/library_version")
+      .then((res) => {
         setAvailableLibraries([
           ["Numpy", res.data.numpy],
           ["Autograd", res.data.autograd],
@@ -117,539 +152,552 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
           ["JAX", res.data.jax],
         ]);
       })
-      .catch(err => console.error("Library version fetch failed:", err));
-  }, []);
-
-
-
-
-
-  /**
-  * A callback to trigger when user changes modes between real-time and debugger
-  *
-  * @param {object} mode -
-  */
-  const onSelectChange = (mode) => {
-    setMode(mode);
-
-		if(mode.value == "Debugger Mode"){
-			axios.post('/dc/enterDebuggerMode', 
-			{
-				"token": authToken, 
-				"session_id": sessionID,
-        "policy_accepted": policyAccepted,
-				"timestamp": new Date().getTime()
-			}, {headers: {'Content-Type': 'application/json'}})
-
-			setImgSrc("/defaultImage.png")
-			setInitData([]) 
-		} 
-    
-    else {
-			axios.post('/dc/enterRealTimeMode', 
-			{
-				"token": authToken, 
-				"session_id": sessionID,
-        "policy_accepted": policyAccepted,
-				"timestamp": new Date().getTime()
-			}, {headers: {'Content-Type': 'application/json'}})
-
-			setImgSrc("/defaultImage.png")
-			setInitData([])  
-
-			getDataFromBackEnd(codeEditorData)
-			setLine(-1)
-			setDebugLines(new Set())
-			setReadOnlyFlag(false)
-			setDebugStart(true)
-			setShowLoading(false)
-
-			setBreaks(b => [])
-		}
-  };
- 
-  /**
-  * Set the id of which circuit visualization is currently being displayed.
-  */
-  const setCircuitDisplayedMethod = (id) => {
-    setCircuitDisplayed(id)
-  }
-
-  /**
-  * Methods to deal with the list of subcircuits / methods
-  */
-  const addMethodToExpandedMethods = (methodId) => {
-    expandedMethods.add(methodId)
-    setExpandedMethods(expandedMethods)
-  }
-
-  /**
-  * Methods to deal with the list of subcircuits / methods
-  */
-  const removeMethodFromExpandedMethods = (methodId) => { 
-    expandedMethods.delete(methodId)
-    setExpandedMethods(expandedMethods)
-  }
-
-  /**
-  * Methods to deal with the list of subcircuits / methods
-  */
-  const checkIfMethodInExpandedMethods = (methodId) => {
-    return expandedMethods.has(methodId)
-  }
-
-  /**
-  * The function to send main visualizeCircuit calls to the server
-  * and process the returned JSON object.
-  *
-  * @param {string} data - user code to be sent to the server
-  */
-  const getDataFromBackEnd = (data) => {
-    setErrorInCode([])
-    setShowLoadingTree(true)
-
-    // show default image if the entire user code is deleted
-		if (data.length < 5) {setImgSrc("/defaultImage.png")}
-    const headers = {
-      'Content-Type': 'application/json'
-    }
-		axios.post('/visualizeCircuit', { 
-			"session_id": sessionID,
-      "policy_accepted": policyAccepted,
-			"timestamp": new Date().getTime(),
-			"data": data,
-			"mode": mode.value
-		}, {headers: headers}
-		)
-		.then(res => { 
-			if("error" in res["data"]){
-				setErrorInCode(res["data"]["error"])
-				setLine(parseInt(res["data"]["error"][1].split(" ")[2]))
-			} else {
-				setLine(-1)
-			}
-			setDeviceName(res["data"]["device_name"]);
-			setDebugIndex(res["data"]["debug_index"]);
-      setCommands(c => res["data"]["commands"]);
-			setNumWires(res["data"]["num_wires"]);
-			setNumShots(res["data"]["num_shots"]);
-
-			if (res['data']['image'] !== null && res['data']['image'] !== undefined) {
-				setImgSrc( "data:image/png;base64,".concat(res['data']["image"]))
-			}
-			setCircuitDisplayedMethod(res['data']['id'])
-			var init_data = []
-			for(let i = 0; i < res['data']['transform_details'].length; i++){
-				
-				init_data.push({
-					"name":res['data']['transform_details'][i][2],
-					"id": res['data']['transform_details'][i][3],
-					"line_number": res['data']['transform_details'][i][4],
-					"children": [],
-					"img" : res['data']['transform_details'][i][0],
-					"arguments":  [],
-					"color_button" : false,
-					"transform": true,
-					"end_idx": -1,
-					"more_information": {"Arguments": null, "Output": res['data']['transform_details'][i][1]}
-				})
-			}
-			init_data.push({
-				"name":res['data']['name'],
-				"id": res['data']['id'],
-				"line_number": res['data']['line_number'],
-				"children": [],
-				"img" :res['data']['image'],
-				"arguments": res['data']['arguments'],
-				"color_button" : true,
-				"transform": false,
-				"end_idx": "-1",
-				"more_information":res['data']['more_information'],
-				"has_children": res["data"]["has_children"]
-			}
-		)
-			setInitData(init_data)
-			setShowLoadingTree(false)
-		})
-		.catch(function (error) {      
-			console.log(error);
-			setShowLoadingTree(false)
-
-		});
-	}
-
-
-  /**
-  * When codeEditorData changes,
-  * if it does not change again for 1 second after the first change,
-  * send a request to the backend to process the current code.
-  */
-  useEffect(() => {
-		const delaytime = setTimeout(() => {
-    	if(mode.value == "Real-Time Development"){
-      	getDataFromBackEnd(codeEditorData)
-      	setInitData([])
-      	setDebugStart(true)
-    	}
-		}, 1000)
-		return () => clearTimeout(delaytime)
-	}, [codeEditorData])
-
-  /**
-  * Set codeEditorData by preprocessing the code in the editor
-  */
-  const showCircuit = (action, data) => {
-		// Do not change data if only a comment line is changed
-		const newLines = data.split("\n")
-		const oldLines = codeEditorData.split("\n")
-		if (newLines.length !== oldLines.length) {
-			setCodeEditorData(data)
-			return
-		}
-
-		let changes = []
-		for (let i=0; i<newLines.length; i++) {
-			// Check that the line is changed
-			if (newLines[i] !== oldLines[i]) {
-				// If both old and new lines start with a "#", it is a single line comment change. Do not add to changes!
-				// This covers the cases where the whole line is a comment.
-				if (newLines[i].replace(/\s/g, "")[0] === "#" && oldLines[i].replace(/\s/g, "")[0] === "#") {
-					continue
-				}
-
-				/* If the comment is at the end of the line, use the rules below:
-							If new or old line does not include a # at all, it is not a comment change. Add to changes!
-							If new or old line includes multiple # characters with other characters in between, it is a complicated line. Add to changes!
-							If both new and old lines include a single #, check if the parts before the # are equal. If not, add to changes!	
-							Check if the # character is in a string by counting " and ' characters before the # character. If yes, add to changes!
-				*/
-				let newLineArr = newLines[i].split("#").filter(e => e !== "") // The filter is used because some people start comments with multiple "#" on comments
-				let oldLineArr = oldLines[i].split("#").filter(e => e !== "")
-
-				if (newLineArr.length !== 2 || oldLineArr.length !== 2) {
-					changes.push(newLines[i])
-					continue
-				}
-
-				if (newLineArr[0] !== oldLineArr[0]) {
-					changes.push(newLines[i])
-					continue
-				}
-
-				// If odd number of " or ' before #, # must be in a string
-				if ((newLineArr[0].split("\"") - 1) % 2 === 1 || (newLineArr[0].split("'") - 1) % 2 === 1) {
-					changes.push(newLines[i])
-				}
-
-				// At this point we now that the changed line includes a single # that is not in a single line string.
-				// We also know that the change in the line happened after the #, so it is a comment change.
-				// Unless there is a multi-line string wrapping the whole line.
-			}
-		}
-
-		if (changes.length > 0) {
-    	setCodeEditorData(data)
-		}
-  };
-
-  /**
-  * Change the color of the button that is related to the circuit visualization currently rendereed on the page.
-  */
-  const updateCircuitShownButton = (curr_node, node) => {      
-    curr_node.color_button = curr_node.id == node.id;
-    for(let i = 0; i < curr_node.children.length; i ++) {
-        updateCircuitShownButton(curr_node.children[i], node)
-    }
-  }
-    
-  /**
-  * Change which circuit is being rendered on the visualization box.
-  */
-  const changeCircuit = (node) => {
-    for(let i = 0; i < initData.length; i++){
-      updateCircuitShownButton(initData[i], node)
-    }
-    setCurrentFcnInImage(node.id)
-    setImgSrc("data:image/png;base64,".concat(node['img']))
-    setCurrNode(node)
-  }
-
-  /**
-  * Change which circuit is being rendered on the visualization box.
-  */
-  const showCircuitOfId = (d) => {
-    for(let i = 0; i < d.length; i ++) {
-      if(d[i]['id'] == currNode.id) {
-        setImgSrc("data:image/png;base64,".concat(d[i]['img']))
-        return
-      }
-    }
-  }
-  
-  /**
-  * Runs when the user enters the landing page after auth and / or when
-  * user accepts or rejects the data collection policy. Sets session id
-  * and color theme. If policy is accepted, starts data collection by
-  * sending a sessionEnter with the new session id.
-  */
-  useEffect(() => {
-		if (authToken == null) {return () => {}}
-
-		const session = (new Date().getTime().toString(16) + "_" + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16)).toUpperCase()
-		setSessionID(session)
+      .catch((err) => console.error("Library version fetch failed:", err));
 
     defineTheme("tomorrow-night").then((_) =>
       setTheme({ value: "tomorrow-night", label: "tomorrow-night" })
     );
 
-		axios.post('/dc/sessionEnter',
-			{
-				"token": authToken,
-				"session_id": session,
-        "policy_accepted": policyAccepted,
-				"timestamp": new Date().getTime()
-			},
-			{headers: {'Content-Type': 'application/json'}}
-		)
+    getDataFromBackEnd(codeEditorData);
+  }, []);
 
-		const handleBeforeUnload = (event) => {
-      // Perform actions before the component unloads
-      event.preventDefault();
-      event.returnValue = '';
-			axios.post('/dc/sessionExit',
-				{
-					"token": authToken,
-					"session_id": session,
-          "policy_accepted": policyAccepted,
-					"timestamp": new Date().getTime()
-				},
-				{headers: {'Content-Type': 'application/json'}}
-			)
-    };
+  /** Keep activeTransformsRef in sync with activeTransforms state. */
+  useEffect(() => {
+    activeTransformsRef.current = activeTransforms;
+  }, [activeTransforms]);
 
-		window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [authToken, policyAccepted]);
+  /** Keep displayTransformLevelRef in sync with displayTransformLevel state. */
+  useEffect(() => {
+    displayTransformLevelRef.current = displayTransformLevel;
+  }, [displayTransformLevel]);
+
+  /** Keep postSelectOverridesRef in sync with postSelectOverrides state. */
+  useEffect(() => {
+    postSelectOverridesRef.current = postSelectOverrides;
+  }, [postSelectOverrides]);
+
+  /** 
+   * Synchronize activeTransforms with presentTransforms.
+   * Ensures that newly added transforms are active (checked) by default,
+   * while deleted transforms are removed and manually unchecked ones stay unchecked.
+   */
+  useEffect(() => {
+    // If no transforms in code, clear active list
+    if (presentTransforms.length === 0) {
+      if (activeTransforms !== null && activeTransforms?.length !== 0) {
+        setActiveTransforms([]);
+        setDisplayTransformLevel(0);
+        displayTransformLevelRef.current = 0;
+      }
+      prevPresentTransformsRef.current = [];
+      return;
+    }
+
+    // Default to all active on first detection (when state is still null)
+    if (activeTransforms === null) {
+      setActiveTransforms(presentTransforms);
+      prevPresentTransformsRef.current = presentTransforms;
+      return;
+    }
+
+    const prevPresentTransformsSet = new Set(prevPresentTransformsRef.current.map(t => JSON.stringify(t)));
+    const presentTransformsSet = new Set(presentTransforms.map(t => JSON.stringify(t)));
+
+    const prunedActiveTransforms = activeTransforms.filter(t => presentTransformsSet.has(JSON.stringify(t)));
+    const brandNewTransforms = presentTransforms.filter(t => !prevPresentTransformsSet.has(JSON.stringify(t)));
+    const nextActiveTransforms = [...prunedActiveTransforms, ...brandNewTransforms];
+
+    const hasChanged = nextActiveTransforms.length !== activeTransforms.length ||
+      !nextActiveTransforms.every((t, i) => JSON.stringify(t) === JSON.stringify(activeTransforms[i]));
+
+    if (hasChanged) {
+      setActiveTransforms(nextActiveTransforms);
+    }
+
+    prevPresentTransformsRef.current = presentTransforms;
+  }, [presentTransforms]);
+
+  /**
+   * When codeEditorData changes,
+   * if it does not change again for 1 second after the first change,
+   * send a request to the backend to process the current code.
+   */
+  useEffect(() => {
+    const delaytime = setTimeout(() => {
+      getDataFromBackEnd(codeEditorData, activeTransformsRef.current);
+      setDebuggerActive(false);
+    }, 1000);
+    return () => clearTimeout(delaytime);
+  }, [codeEditorData]);
 
 
   /**
-  * Runs when a debugger button is pressed, sends information about
-  * the current debugger run to the server, requesting the desired
-  * action to be processed
-  *
-  * @param {string} action - Debugger action. E.g. step into, next breakpoint
-  */
-  const debugNext = (action) => {
-    const headers = {
-      'Content-Type': 'application/json'
+   * Runs when user sets a new breakpoint on the editor. Sets the state that
+   * represents all currently set breakpoints.
+   */
+  useEffect(() => {
+    setBreakpointLines(breaks);
+  }, [breaks]);
+
+  /** Applies a subtree for a given level, updating graph data and circuit image. */
+  const visualizeSubtreeForLevel = (graphData, level) => {
+    const subtree = getSubtreeForLevel(graphData, level);
+    setGraphData(subtree);
+
+    if (subtree?.nodes?.length) {
+      const subtreeTargetIds = new Set(subtree.edges.map(e => String(e.target)));
+      const subtreeRoot = subtree.nodes.find(n => !subtreeTargetIds.has(String(n.id)));
+      if (subtreeRoot?.subtree_circuit_img) {
+        setImgSrc("data:image/png;base64,".concat(subtreeRoot.subtree_circuit_img));
+        return;
+      }
     }
-    axios.post('/debugNext',
-			{
-				"token": authToken,
-				"session_id": sessionID,
-        "policy_accepted": policyAccepted,
-				"timestamp": new Date().getTime(),
-				"data": debugLines,
-				"device_name": deviceName,
-				"commands": commands,
-				"debug_index": debugIndex,
-				"num_wires": numWires,
-				"num_shots": numShots,
-				"debug_action": action
-			},{headers: headers})
-      .then(res => {
+    setImgSrc("/defaultImage.png");
+  };
 
-          setDebugIndex(res["data"]["debug_index"]);
+  // Handlers
+  /** Updates the circuit image when a node is selected in the command tree. */
+  const handleNodeSelect = (imageBase64) => {
+    setImgSrc("data:image/png;base64,".concat(imageBase64));
+  };
 
-          var data = []
-          setInitData([])
-          // expandedMethods.add(res['data']['id'])
-          // setExpandedMethods(expandedMethods)
-          if(circuitDisplayed == -1) {
-          setCircuitDisplayedMethod(res['data']['id'])
-        }
-          data.push({
-            "name":res['data']['name'],
-            "id": res['data']['id'],
-            "line_number": res['data']['line_number'],
-            "children": [],
-						"has_children": res['data']['has_children'],
-            "img" :res['data']['image'],
-            "arguments": res['data']['arguments'],
-            "color_button" : false,
-            "transform": false,
-            "more_information": {"Output": res['data']['circuit_output'], "Arguments": debuggerMainFcnInfo["Arguments"]},
-            "end_idx": res['data']['end_idx']
-          })
-          if(currNode == null) {
-            data[data.length - 1]['color_button'] = true
-          }
-          setLine(res['data']['line_number_to_highlight'])
+  /** Detects the transform level of a subtree by walking up its nodes in the full unified graph. */
+  const detectLevelFromSubtree = (fullGraph, subtree) => {
+    if (!fullGraph || !subtree || !subtree.nodes || subtree.nodes.length === 0) return -1;
 
-          if(res['data']['line_number_to_highlight'] == -1) {
-            data[0]["more_information"] = debuggerMainFcnInfo
-            setOnlyTransformsToLookAt(true)
-          }
-          if(onlyTransformsToLookAt || res['data']['line_number_to_highlight'] == -1){
-            if(transformDetailsForDebugger.length > 0) {
-              var debugLinesSet = new Set()
-              if(debugLines.length > 0){
-                  debugLinesSet = new Set(debugLines.split(" "))
-              }
-              var i = transformIndexForDebugger
-              while(i >= 0){
-                if(!debugLinesSet.has(String(transformDetailsForDebugger[i][4])) ||
-                transformIndiciesSeen.includes(String(transformDetailsForDebugger[i][4]))
-                ){
-                  data.unshift({
-                    "name":transformDetailsForDebugger[i][2],
-                    "id": transformDetailsForDebugger[i][3],
-                    "line_number": transformDetailsForDebugger[i][4],
-                    "children": [],
-                    "img" : transformDetailsForDebugger[i][0],
-                    "arguments":  [],
-                    "color_button" : false,
-                    "transform": true,
-                    "end_idx": -1,
-                    "more_information": {"Arguments": null, "Output": transformDetailsForDebugger[i][1]}
-                  })
-                  i -= 1
-              }
+    const subtreeNode = subtree.nodes[0];
+    const targetNodeId = String(subtreeNode.id);
 
-                else {
-                  debugLinesSet.delete(String(transformDetailsForDebugger[i][4]))
-                  transformIndiciesSeen.push((String(transformDetailsForDebugger[i][4])))
-                  setLine(transformDetailsForDebugger[i][4])
-                  // setTransformIndexForDebugger(i)
-                  break
-                  
-                }
-                if(i == -1) {
-                  setReadOnlyFlag(false)
-                  setDebugStart(true)                }
-              }
-            }
-          
-            else {
-            setReadOnlyFlag(false)
-            setDebugStart(true)
-            }
-          }
-          setInitData(data)
+    const parentMap = {};
+    fullGraph.edges.forEach(e => {
+      parentMap[String(e.target)] = String(e.source);
+    });
 
-          if(currNode == null){
-            setImgSrc( "data:image/png;base64,".concat(res['data']["image"]))
-            }
-            else {
-              showCircuitOfId(data)
-            }
-          setShowLoadingTree(false)
+    const targetIds = new Set(fullGraph.edges.map(e => String(e.target)));
+    const rootSearch = fullGraph.nodes.find(n => !targetIds.has(String(n.id)));
+    if (!rootSearch) return -1;
+    const rootId = String(rootSearch.id);
 
-      })
-      .catch(function (error) {      
-        console.log(error)
+    const childrenOfRoot = fullGraph.edges
+      .filter(e => String(e.source) === rootId)
+      .map(e => String(e.target))
+      .sort((a, b) => Number(a) - Number(b));
 
-      });
-  }
+    const levelRoots = new Set(childrenOfRoot);
 
-  const getDebugLineNumbers = (lines) => {
-    setDebugLines(lines)
-  }
+    let curr = targetNodeId;
+    while (curr && !levelRoots.has(curr) && curr !== rootId) {
+      curr = parentMap[curr];
+    }
+
+    if (levelRoots.has(curr)) {
+      return childrenOfRoot.indexOf(curr);
+    }
+
+    return -1;
+  };
 
   /**
-  * Clear states to be ready for a new debugger session.
-  * Then, send a visualizeCircuit call to process the
-  * code and get the trace / objects needed for debugging.
-  */
-  const startDebugger = () => {
-    setImgSrc("/defaultImage.png")
-    setCurrNode(null)
-    setInitData([])
-    setShowLoading(true)
-    setLine(-1)
-    setExpandedMethods(new Set())
+   * Handles transform level changes purely on the frontend.
+   * Filters the full unified graph data to the correct subtree branch and
+   * updates the circuit image from that branch's root node.
+   */
+  const handleTransformSelect = (newActiveTransforms) => {
+    setActiveTransforms(newActiveTransforms);
+    activeTransformsRef.current = newActiveTransforms;
 
-    if(debugStart == false) {
-      // call service to reset all global variables and remove red color
-      setLine(-1)
-      setReadOnlyFlag(false)
-      setDebugStart(true)
-      setShowLoading(false)
+    if (!fullGraphData) return;
 
+    const level = newActiveTransforms.length;
+    setDisplayTransformLevel(level);
+    displayTransformLevelRef.current = level;
+
+    const subtree = getSubtreeForLevel(fullGraphData, level);
+
+    if (subtree && subtree.nodes && subtree.nodes.length > 0) {
+      setGraphData(subtree);
+      const subtreeTargetIds = new Set(subtree.edges.map(e => String(e.target)));
+      const subtreeRoot = subtree.nodes.find(n => !subtreeTargetIds.has(String(n.id)));
+      if (subtreeRoot?.subtree_circuit_img) {
+        setImgSrc("data:image/png;base64,".concat(subtreeRoot.subtree_circuit_img));
+      }
     }
-  
-    else {
-      setCircuitDisplayed(-1)
+  };
 
+  /** Re-runs visualization and updates the postselect overrides when user changes postselect overrides. */
+  const handlePostSelectApply = (nodeId, value) => {
+    setPostSelectOverrides(prev => {
+      const next = { ...prev };
+      if (value === null) {
+        delete next[String(nodeId)];
+      } else {
+        next[String(nodeId)] = value;
+      }
+      prevPostSelectOverridesRef.current = { ...postSelectOverridesRef.current };
+      postSelectOverridesRef.current = next;
+      // Refresh the visualization data with the new overrides.
+      setTimeout(() => getDataFromBackEnd(codeEditorData), 0);
+
+      return next;
+    });
+  };
+
+
+  // API Calls
+  /**
+   * The function to send main visualizeCircuit calls to the server
+   * and process the returned JSON object.
+   *
+   * @param {string} data - user code to be sent to the server
+   */
+  const getDataFromBackEnd = (data) => {
+    setErrorInCode([]);
+    setShowLoadingTree(true);
+
+    // show default image if the entire user code is deleted
+    if (data.length < 5) {
+      setImgSrc("/defaultImage.png");
+    }
     const headers = {
-      'Content-Type': 'application/json'
-    }
-    axios.post('/visualizeCircuit', {
-			"token": authToken,
-			"session_id": sessionID,
-			"timestamp": new Date().getTime(),
-      "policy_accepted": policyAccepted,
-			"data": codeEditorData,
-			"mode": mode.value
-		}, {headers: headers}
-    )
-      .then(res => {
-        setErrorInCode([])
-        if("error" in res["data"]){
-          setErrorInCode(res["data"]["error"])
-					setLine(parseInt(res["data"]["error"][1].split(" ")[2]))
+      "Content-Type": "application/json",
+    };
+    axios
+      .post(
+        "/visualizeCircuit",
+        {
+          timestamp: new Date().getTime(),
+          data: data,
+          postselect_overrides: postSelectOverridesRef.current,
+          session_id: sessionId,
+        },
+        { headers: headers }
+      )
+      .then((res) => {
+        if ("error" in res["data"]) {
+          setErrorInCode(res["data"]["error"]);
+          setLine(parseInt(res["data"]["error"][1].split(" ")[2]));
+          // On error, we keep the old graphData and presentTransforms to maintain the tree
+          if (res["data"]["error"][0] === "Invalid state: Post-selected measurement probability is 0") {
+            setPostSelectOverrides(prevPostSelectOverridesRef.current);
+            postSelectOverridesRef.current = prevPostSelectOverridesRef.current;
+          }
         } else {
-					setLine(-1)
-				}
+          setLine(-1);
+          setDeviceName(res["data"]["device_name"]);
+          setDebugIndex(res["data"]["debug_index"]);
+          setCommands((c) => res["data"]["commands"]);
+          setNumWires(res["data"]["num_wires"]);
+          setNumShots(res["data"]["num_shots"]);
+          const newTransformDetails = res["data"]["transform_details"];
+          setPresentTransforms(newTransformDetails);
+          const newFullGraph = res["data"]["graph_data"];
+          setFullGraphData(newFullGraph);
 
-				setDeviceName(res["data"]["device_name"]);
-				setDebugIndex(res["data"]["debug_index"]);
-				setCommands(c => res["data"]["commands"]);
-				setNumWires(res["data"]["num_wires"]);
-				setNumShots(res["data"]["num_shots"]);
+          // On first load, default to the highest level (all transforms applied).
+          // Otherwise keep the user's selection, clamped to the new max level in
+          // case a transform was commented out.
+          const currentActive = activeTransformsRef.current;
+          const rawLevel = currentActive !== null
+            ? currentActive.length
+            : newTransformDetails.length;  // first load, show all transforms applied
+          const newLevel = Math.min(rawLevel, newTransformDetails.length);
+          setDisplayTransformLevel(newLevel);
+          displayTransformLevelRef.current = newLevel;
 
-        setOnlyTransformsToLookAt(false)
-        setTransformIndiciesSeen([])
-        setTransformDetailsForDebugger([])
-        setDebuggerMainFcnInfo(res['data']['more_information'])
 
+          // Immediately sync activeTransforms to the clamped level so the
+          // timeline indicator always agrees with what getSubtreeForLevel renders.
+          const clampedActiveTransforms = currentActive !== null
+            ? newTransformDetails.slice(0, newLevel)
+            : newTransformDetails;
+          setActiveTransforms(clampedActiveTransforms);
+          activeTransformsRef.current = clampedActiveTransforms;
 
-        if(res['data']['transform_details'].length > 0){
-          setTransformDetailsForDebugger(res['data']['transform_details'])
-          setTransformIndexForDebugger(res['data']['transform_details'].length - 1)
+          const subtree = getSubtreeForLevel(newFullGraph, newLevel);
+          setGraphData(subtree);
+
+          // If starting debugger, sync level
+          if (res["data"]["debugger_active"]) {
+            const level = detectLevelFromSubtree(newFullGraph, subtree);
+            if (level !== -1) {
+              setDisplayTransformLevel(level);
+              displayTransformLevelRef.current = level;
+              setActiveTransforms(newTransformDetails.slice(0, level));
+            }
+          }
+
+          visualizeSubtreeForLevel(newFullGraph, newLevel);
         }
-        setReadOnlyFlag(true)
-        setDebugStart(false)
-
-          setShowLoading(false)
-
+        setShowLoadingTree(false);
       })
-      .catch(function (error) {      
-
+      .catch(function (error) {
         console.log(error);
-        setShowLoading(false)
-
+        setShowLoadingTree(false);
       });
-  }
-
-}
+  };
 
   /**
-  * Runs when user sets a new breakpoint on the editor. Sets the state that
-  * represents all currently set breakpoints.
-  */
-	useEffect(() => {
-		if (mode.value == "Real-Time Development" && (breaks.length !== 0)) {
-			setBreaks(b => []);
-		}
-		let breaksStr = "";
-		breaks.forEach((b) => breaksStr += (b + " "));
-		getDebugLineNumbers(breaksStr);
-	},[breaks])
+   * Filters out pure comment-only line changes to avoid unnecessary
+   * re-renders. Sets codeEditorData only when meaningful code has changed.
+   *
+   * @param {string} action - Editor action (unused, passed by editor callback).
+   * @param {string} data   - Full current editor content.
+   */
+  const showCircuit = (action, data) => {
+    // Do not change data if only a comment line is changed
+    const newLines = data.split("\n");
+    const oldLines = codeEditorData.split("\n");
+    if (newLines.length !== oldLines.length) {
+      setCodeEditorData(data);
+      return;
+    }
+
+    let changes = [];
+    for (let i = 0; i < newLines.length; i++) {
+      // Check that the line is changed
+      if (newLines[i] !== oldLines[i]) {
+        // If both old and new lines start with a "#", it is a single line comment change. Do not add to changes!
+        // This covers the cases where the whole line is a comment.
+        if (
+          newLines[i].replace(/\s/g, "")[0] === "#" &&
+          oldLines[i].replace(/\s/g, "")[0] === "#"
+        ) {
+          continue;
+        }
+
+        /* If the whole line is not commented out, use the rules below:
+              If new or old line does not include a # at all, it is not a comment change. Add to changes!
+              If new or old line includes multiple # characters with other characters in between, it is a complicated line. Add to changes!
+              If both new and old lines include a single #, check if the parts before the # are equal. If not, add to changes!	
+              Check if the # character is in a string by counting " and ' characters before the # character. If yes, add to changes!
+        */
+        let newLineArr = newLines[i].split("#").filter((e) => e !== ""); // The filter is used because some people start comments with multiple "#" on comments
+        let oldLineArr = oldLines[i].split("#").filter((e) => e !== "");
+
+        if (newLineArr.length !== 2 || oldLineArr.length !== 2) {
+          changes.push(newLines[i]);
+          continue;
+        }
+
+        if (newLineArr[0] !== oldLineArr[0]) {
+          changes.push(newLines[i]);
+          continue;
+        }
+
+        // If odd number of " or ' before #, # must be in a string
+        if (
+          (newLineArr[0].split('"') - 1) % 2 === 1 ||
+          (newLineArr[0].split("'") - 1) % 2 === 1
+        ) {
+          changes.push(newLines[i]);
+        }
+
+        // At this point we now that the changed line includes a single # that is not in a single line string.
+        // We also know that the change in the line happened after the #, so it is a comment change.
+        // Unless there is a multi-line string wrapping the whole line.
+      }
+    }
+
+    if (changes.length > 0) {
+      setCodeEditorData(data);
+    }
+  };
+
+  /**
+   * Runs when a debugger button is pressed, sends information about
+   * the current debugger run to the server, requesting the desired
+   * action to be processed
+   *
+   * @param {string} action - Debugger action. E.g. step into, next breakpoint
+   */
+  const debugNext = async (action) => {
+    // Generate flatNodes from full graph data
+    const flatNodes = flattenGraphNodes(fullGraphData);
+    if (!flatNodes || flatNodes.length === 0) return;
+
+    // Convert Set breakpointLines to Array
+    const bpArray = Array.from(breakpointLines).map(String);
+    let nextState;
+    switch (action) {
+      case "next_breakpoint":
+        nextState = getNextBreakpointState(flatNodes, debugIndex, transformStack, currentTransform, currentTransformIdx, bpArray, fullGraphData);
+        break;
+      case "prev_breakpoint":
+        nextState = getPrevBreakpointState(flatNodes, debugIndex, transformStack, currentTransform, currentTransformIdx, bpArray, fullGraphData);
+        break;
+      case "step_over":
+        nextState = getStepOverState(flatNodes, debugIndex, transformStack, currentTransform, currentTransformIdx, bpArray, fullGraphData);
+        break;
+      case "step_into":
+        nextState = getStepIntoState(flatNodes, debugIndex, transformStack, currentTransform, currentTransformIdx, fullGraphData);
+        break;
+      case "step_out":
+        nextState = getStepOutState(flatNodes, debugIndex, transformStack, currentTransform, currentTransformIdx, bpArray, fullGraphData);
+        break;
+      case "restart":
+        nextState = getRestartState(flatNodes, fullGraphData);
+        break;
+      default:
+        return;
+    }
+
+    setDebugIndex(nextState.debugIndex);
+    setTransformStack(nextState.transformStack);
+    setCurrentTransform(nextState.currentTransform);
+    setCurrentTransformIdx(nextState.currentTransformIdx);
+    setLine(parseInt(nextState.lineToHighlight) || -1);
+
+    const level = nextState.graphDataWithDebugState ? nextState.transformStack.length : -1;
+    if (level !== -1) {
+      setDisplayTransformLevel(level);
+      displayTransformLevelRef.current = level;
+      setActiveTransforms(presentTransforms.slice(0, level));
+    }
+
+    if (nextState.isComplete) {
+      setReadOnlyFlag(false);
+      setDebuggerActive(false);
+
+      const currentActive = activeTransformsRef.current;
+      const rawLevel = currentActive.length;
+      const newLevel = Math.min(rawLevel, presentTransforms.length);
+      setDisplayTransformLevel(newLevel);
+      displayTransformLevelRef.current = newLevel;
+
+      const clampedActiveTransforms = currentActive !== null
+        ? presentTransforms.slice(0, newLevel)
+        : presentTransforms;
+      setActiveTransforms(clampedActiveTransforms);
+      activeTransformsRef.current = clampedActiveTransforms;
+      visualizeSubtreeForLevel(fullGraphData, newLevel);
+
+      return;
+    }
+
+    const outputResult = await getCircuitOutputandImg(
+      sessionId,
+      nextState.renderNodeIds,
+      nextState.transformRootIdx,
+      postSelectOverridesRef.current
+    );
+
+    if (outputResult.image) {
+      setImgSrc("data:image/png;base64,".concat(outputResult.image));
+    } else {
+      setImgSrc("/defaultImage.png");
+    }
+
+    if (outputResult.circuit_output && nextState.graphDataWithDebugState) {
+      let subGraph = getSubtreeForLevel(nextState.graphDataWithDebugState, level !== -1 ? level : 0);
+      subGraph.nodes = subGraph.nodes.map(n =>
+        n.parent_id === null ? { ...n, output: outputResult.circuit_output } : n
+      );
+      setGraphData(subGraph);
+    } else if (nextState.graphDataWithDebugState) {
+      let subGraph = getSubtreeForLevel(nextState.graphDataWithDebugState, level !== -1 ? level : 0);
+      setGraphData(subGraph);
+    }
+  };
+
+  const clearBreakpoints = () => {
+    setBreakpointLines([]);
+    setBreaks((b) => []);
+  };
+
+  /**
+   * Clear states to be ready for a new debugger session.
+   * Then, send a visualizeCircuit call to process the
+   * code and get the trace / objects needed for debugging.
+   */
+  const startStopDebugger = () => {
+    setImgSrc("/defaultImage.png");
+
+    setShowLoading(true);
+    setLine(-1);
+
+    if (debuggerActive) { //if debugger is active, stop it
+      // call service to reset all global variables
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      axios
+        .post(
+          "/visualizeCircuit",
+          {
+            timestamp: new Date().getTime(),
+            data: codeEditorData,
+            postselect_overrides: postSelectOverridesRef.current,
+            session_id: sessionId,
+          },
+          { headers: headers }
+        )
+        .then((res) => {
+          setGraphData(getSubtreeForLevel(res["data"]["graph_data"], 0));
+          setImgSrc("data:image/png;base64,".concat(res["data"]["image"]));
+          setLine(-1);
+          setReadOnlyFlag(false);
+          setDebuggerActive(false);
+          setShowLoading(false);
+          setTransformStack([]);
+          setCurrentTransform(-1);
+          setCurrentTransformIdx(1);
+          getDataFromBackEnd(codeEditorData);
+        });
+    } else { //if debugger is not active, start it
+      const headers = {
+        "Content-Type": "application/json",
+      };
+      axios
+        .post(
+          "/visualizeCircuit",
+          {
+            timestamp: new Date().getTime(),
+            data: codeEditorData,
+            postselect_overrides: postSelectOverridesRef.current,
+            session_id: sessionId,
+          },
+          { headers: headers }
+        )
+        .then((res) => {
+          setErrorInCode([]);
+          if ("error" in res["data"]) {
+            setErrorInCode(res["data"]["error"]);
+            setLine(parseInt(res["data"]["error"][1].split(" ")[2]));
+          } else {
+            setLine(-1);
+            setDeviceName(res["data"]["device_name"]);
+            setDebugIndex(0);
+            setCommands((c) => res["data"]["commands"]);
+            setNumWires(res["data"]["num_wires"]);
+            setNumShots(res["data"]["num_shots"]);
+
+            // Start at base qnode tree
+            setTransformStack([]);
+            setCurrentTransform(-1);
+            setCurrentTransformIdx(1);
+            setReadOnlyFlag(true);
+            setDebuggerActive(true);
+            setActiveTransforms([]);
+            setDisplayTransformLevel(0);
+            displayTransformLevelRef.current = 0;
+
+            const subtree = getSubtreeForLevel(res["data"]["graph_data"], 0);
+            setGraphData(subtree);
+          }
+          setShowLoading(false);
+        })
+        .catch(function (error) {
+          console.log(error);
+          setShowLoading(false);
+        });
+    }
+  };
 
 
+
+  // Render
+  const isTransformCommand = presentTransforms && presentTransforms.some((t) => t[1] === parseInt(line));
+  const isPostSelectError = errorInCode.length != 0 && errorInCode[0] == POST_SELECT_ERROR_MSG;
   return (
     <>
       <ToastContainer
@@ -663,140 +711,275 @@ const Landing = ({authToken, userEmail, pennylaneVersion}) => {
         draggable
         pauseOnHover
       />
-      <div className="h-4 w-full bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500"></div>
-			
-      <div className="flex flex-row">
-        <div className="px-4 py-2 basis-1/2 flex flex-row">
-          <div className="flex flex-row space-x-8 items-start w-ful">
-          <ModeDropdown onSelectChange={onSelectChange} />
-          {mode.value == "Debugger Mode" && <button onClick={startDebugger} className="rounded bg-white hover:bg-gray-300 py-2.5 px-8 text-xs transition-colors duration-150 border focus:shadow-outline">
-            {debugStart ? "Start Debugger" : "Stop Debugger"}</button> 
-          }
-          {showLoading ? <div role="status" className="py-1"><LoadingIcon/></div> : <div></div>}
-					
+      <div className="h-screen flex flex-col overflow-hidden">
+        <Header />
+        <div className="flex flex-row shrink-0">
+          <div className="px-4 py-2 basis-1/2 flex flex-row items-center">
+            <div className="flex flex-row items-center space-x-4 w-full">
+              <InfoPopup />
 
+              <button
+                onClick={startStopDebugger}
+                className={`flex items-center justify-center h-10 rounded px-8 text-xs transition-colors duration-150 border focus:shadow-outline text-white font-semibold ${debuggerActive
+                  ? "bg-red-500 hover:bg-red-600 border-red-500"
+                  : "bg-green-500 hover:bg-green-600 border-green-500"
+                  }`}
+              >
+                {debuggerActive ? "Stop Debugger" : "Start Debugger"}
+              </button>
+              <button
+                onClick={clearBreakpoints}
+                className="group flex items-center justify-center h-10 w-10 rounded bg-white hover:bg-red-300 text-xs transition-colors duration-150 border focus:shadow-outline"
+              >
+                <ClearBreakpointsIcon />
+                <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">
+                  Clear Breakpoints
+                </span>
+              </button>
 
-    {/* Debugger button function calls */}
-		{(mode.value == "Debugger Mode" && !debugStart) ? <div> 
-        <button  
-          onClick={() => {debugNext("next_breakpoint")}}
-          className="group rounded bg-white hover:bg-gray-300 p-2.5 my-0 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
-				<ContinueIcon/>
-				<span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">Next Breakpoint</span>
-				</button>
-        <button  
-          onClick={() => {debugNext("prev_breakpoint")}}
-          className="group rounded bg-white hover:bg-gray-300 p-2.5 my-0 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
-				<ReverseContinueIcon/>
-				<span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">Previous Breakpoint</span>
-				</button>
-				<button
-          onClick={() => {debugNext("step_over")}}
-					className="group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
-				<StepOverIcon/>
-				<span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">Step Over</span>
-				</button>
-				<button
-          onClick={() => {debugNext("step_into")}}
-					className="group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
-				<StepIntoIcon/>
-				<span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">Step Into</span>
-				</button>
-				<button
-          onClick={() => {debugNext("step_out")}}
-					className="group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
-				<StepOutIcon/>
-				<span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">Step Out</span>
-				</button>
-				<button
-          onClick={() => {debugNext("restart")}}
-					className="group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline">
-				<RestartIcon/>
-				<span className="absolute top-2 scale-0 rounded bg-gray-200 border border-gray-400 p-1 text-xs text-black group-hover:scale-100 transition-all">Restart</span>
-				</button>
-			</div>:<></>}
-              </div>
-        </div>
+              {showLoading && (
+                <div role="status" className="flex items-center">
+                  <LoadingIcon />
+                </div>
+              )}
 
-			<div className="w-full px-4 py-2 basis-1/2 flex flex-row-reverse">
-		  <a href="https://github.com/QSAR-UBC/CircInspect/issues" target="_blank"><button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-8 rounded ml-4">Give Feedback</button></a>
-				<p className="mx-8">You are currently using CircInspect {circInspectVersion} with Pennylane <a className="text-pink-600" href={"https://github.com/PennyLaneAI/pennylane/releases/tag/v"+pennylaneVersion} target="_blank" rel="noreferrer" >{pennylaneVersion}</a>
-				<br/>
-				See a list of <button className="text-pink-600" onClick={() => setShowLibraries(true)}>available libraries</button>.</p>
-       
-      </div> 
-      </div>
-
-      <div className="flex flex-row space-x-4 items-start px-4 py-1">
-        <div className="flex flex-col w-1/2 h-full justify-start items-end">
-				<Qeditor
-					className="CodeEditorWindow"
-					breaks={breaks}
-					setbreaks={setBreaks}
-					highlightline={line}
-					focuson={true}
-					value={code}
-					setvalue={setCode}
-					theme={theme.value}
-					readOnly={readOnlyFlag}
-					onChange={showCircuit}
-					defaultValue={'import pennylane as qml\ndev = qml.device("default.qubit", wires=2)\n@qml.qnode(dev)\ndef my_circuit():\n    qml.Hadamard(wires=0)\n    qml.CNOT(wires=[0, 1])\n    return qml.probs()\n\n# Execute a QNode to render a circuit in the righthand pane\nmy_circuit()'}
-				/>
-
-        </div>
-
-        <div className="right-container flex flex-shrink-0 w-[49%] flex-col space-y-3 ">
-          <OutputWindow imgsrc={imgsrc} isError={errorInCode.length != 0}/>
-          <div className="flex flex-col ">
-
-          
-      <div className="flex space-x-1 function-areas " style={{overflowY:"auto"}}>
-
-      {(errorInCode.length != 0) ? <p className="border-red-400 text-red-700">{errorInCode[0]} - {errorInCode[1]} <br/> Cannot render a new visualization due to error</p> : 
-      ( showLoadingTree? <div role="status" className="py-1">
-   <LoadingIcon/> 
-</div>:
-            <div className="grid gap-1  w-full ">
-              <TreeView circuitDisplayed={circuitDisplayed} setCircuitDisplayedMethod={setCircuitDisplayedMethod} removeMethodFromExpandedMethods={removeMethodFromExpandedMethods} checkIfMethodInExpandedMethods={checkIfMethodInExpandedMethods} addMethodToExpandedMethods={addMethodToExpandedMethods} modeValue ={mode.value} currNode = {currNode} currentFcnInImage = {currentFcnInImage} changeCircuitTree= {changeCircuit} data={initData} handleCallback={changeCircuit} deviceName={deviceName} commands={commands} numWires={numWires} numShots={numShots} sessionID={sessionID} authToken={authToken} policyAccepted={policyAccepted}/>
+              {/* Debugger button function calls */}
+              {debuggerActive ? (
+                <div>
+                  <button
+                    onClick={() => {
+                      debugNext("next_breakpoint");
+                    }}
+                    className="group rounded bg-white hover:bg-gray-300 p-2.5 my-0 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline"
+                  >
+                    <ContinueIcon />
+                    <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">
+                      Next Breakpoint
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      debugNext("prev_breakpoint");
+                    }}
+                    className="group rounded bg-white hover:bg-gray-300 p-2.5 my-0 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline"
+                  >
+                    <ReverseContinueIcon />
+                    <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">
+                      Previous Breakpoint
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      debugNext("step_over");
+                    }}
+                    className="group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline"
+                  >
+                    <StepOverIcon />
+                    <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">
+                      Step Over
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      debugNext("step_into");
+                    }}
+                    disabled={isTransformCommand}
+                    className={"group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline" + (isTransformCommand ? " cursor-not-allowed pointer-events-none" : "")}
+                  >
+                    {isTransformCommand ? <StepIntoIconDisabled /> : <StepIntoIcon />}
+                    <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">
+                      Step Into
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      debugNext("step_out");
+                    }}
+                    disabled={isTransformCommand}
+                    className={"group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline" + (isTransformCommand ? " cursor-not-allowed pointer-events-none" : "")}
+                  >
+                    {isTransformCommand ? <StepOutIconDisabled /> : <StepOutIcon />}
+                    <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-black p-1 text-xs text-black group-hover:scale-100 transition-all">
+                      Step Out
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      debugNext("restart");
+                    }}
+                    className="group rounded bg-white hover:bg-gray-300 p-2.5 mx-1 text-xs transition-colors duration-150 border focus:shadow-outline"
+                  >
+                    <RestartIcon />
+                    <span className="absolute top-2 scale-0 rounded bg-gray-200 border border-gray-400 p-1 text-xs text-black group-hover:scale-100 transition-all">
+                      Restart
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <></>
+              )}
             </div>
-    )}
-      </div>
+          </div>
+
+          <div className="w-full px-4 py-2 basis-1/2 flex flex-row-reverse items-center">
+            <a
+              href="https://github.com/QSAR-UBC/CircInspect/issues"
+              target="_blank"
+            >
+              <button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-8 rounded ml-4">
+                Give Feedback
+              </button>
+            </a>
+            <p className="mx-8">
+              You are currently using CircInspect{" "}
+              <span className="text-pink-600">{circInspectVersion}</span> with
+              Pennylane{" "}
+              <a
+                className="text-pink-600"
+                href={
+                  "https://github.com/PennyLaneAI/pennylane/releases/tag/v" +
+                  pennylaneVersion
+                }
+                target="_blank"
+                rel="noreferrer"
+              >
+                {pennylaneVersion}
+              </a>
+              <br />
+              See a list of{" "}
+              <button
+                className="text-pink-600"
+                onClick={() => setShowLibraries(true)}
+              >
+                available libraries
+              </button>
+              .
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-row flex-1 min-h-0 gap-3 px-4 pb-2">
+          <div className="w-1/2 h-full">
+            <Qeditor
+              className="CodeEditorWindow"
+              height="100%"
+              breaks={breaks}
+              setbreaks={setBreaks}
+              highlightline={line}
+              focuson={true}
+              value={code}
+              setvalue={setCode}
+              theme={theme.value}
+              readOnly={readOnlyFlag}
+              onChange={showCircuit}
+              defaultValue={DEFAULT_CODE}
+            />
+          </div>
+
+          <div className="flex-1 h-full flex flex-col gap-2">
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <OutputWindow imgsrc={imgsrc} isError={errorInCode.length != 0} />
+            </div>
+            <div className="flex-1 min-h-0 relative overflow-hidden rounded-lg bg-[#1d1f21]">
+              <div className="flex flex-col h-full relative">
+                {/* Error Overlay */}
+                {errorInCode.length != 0 && (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black bg-opacity-20 backdrop-blur-[1px]">
+                    <div className="max-w-md w-full bg-[#2d1a1a] border border-red-500 rounded-xl p-6 shadow-2xl transform transition-all animate-in fade-in zoom-in duration-300 relative">
+                      {isPostSelectError && (
+                        <button
+                          onClick={() => {
+                            setErrorInCode([]);
+                            setPostSelectOverrides(prevPostSelectOverridesRef.current);
+                            postSelectOverridesRef.current = prevPostSelectOverridesRef.current;
+                          }}
+                          className="absolute top-3 right-3 text-red-400 hover:text-red-200 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                      <div className="flex items-center gap-3 mb-4 text-red-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <h3 className="text-lg font-bold">Execution Error</h3>
+                      </div>
+                      <div className="bg-black bg-opacity-30 rounded-lg p-4 font-mono text-sm text-red-200 border border-red-900 break-words whitespace-pre-wrap max-h-48 overflow-y-auto">
+                        {errorInCode[0]}: {errorInCode[1]}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading Overlay */}
+                {showLoadingTree && (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <LoadingIcon />
+                  </div>
+                )}
+
+                {/* Main Content Area */}
+                <div className={`flex flex-row h-full transition-all duration-500 ${errorInCode.length !== 0 ? "blur-[3px] grayscale-[0.2] opacity-75 scale-[0.99]" : ""}`}>
+                  {/* The Command Tree Graph */}
+                  <div className="flex-1 min-h-0">
+                    <CommandTreeGraph
+                      graphData={graphData}
+                      onNodeSelect={handleNodeSelect}
+                      isDebuggerActive={debuggerActive}
+                      onPostSelectApply={handlePostSelectApply}
+                    />
+                  </div>
+
+                  {/* Transform Selection Area (Vertical Timeline) */}
+                  {presentTransforms && presentTransforms.length > 0 && (
+                    <TransformTimeline
+                      presentTransforms={presentTransforms}
+                      activeTransforms={activeTransforms}
+                      onTransformSelect={handleTransformSelect}
+                      isDebuggerActive={debuggerActive}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-			<Rodal customStyles={{overflow:"auto", padding:"10px", cursor:"default"}}
-					 visible={showLibraries}
-					 onClose={() => setShowLibraries(false)}
-					 height={480}
-					 width={400}>
-							<h1 className="font-bold text-xl mx-4 mt-2">Available Libraries</h1>
-							<div className="h-4"></div>
-							<table className="w-5/6 m-auto border border-gray-700"><tbody>
-								{availableLibraries.map((a) => <tr className="even:bg-gray-300" key={a[0]}><td className="p-1">{a[0]}</td><td className={a[1] === "unavailable" ? "text-red-600" : ""}>{a[1]}</td></tr>)}	
-							</tbody></table>
-							<div className="h-4"></div>
-							<p className="mx-4">Please let us know at <b className="font-bold">qsar@ece.ubc.ca</b> if you need another library to work with CircInspect!</p>
-			</Rodal>
-
-			<Rodal customStyles={{overflow:"auto", padding:"10px", cursor:"default"}}
-					 visible={showPolicy}
-           showCloseButton={false}
-					 height={350}
-					 width={650}>
-							<h1 className="font-bold text-xl mx-4 mt-2">CircInspect: Integrating Visual Circuit Analysis, Abstraction, and Real-Time Development in Quantum Debugging</h1>
-<div className="m-4 mb-6">
-  <p className="mb-2 text-justify">Thank you for using CircInspect, our quantum debugging tool. CircInspect is currently under active development, and this version is being used for internal quality control, feature improvement, and bug fixing.</p>
-  <p className="mb-2 text-justify">Your interactions with the tool may be used to help identify issues, improve functionality, and enhance the overall user experience. This information is used solely for development and debugging purposes within the CircInspect project.</p> 
-  <p className="mb-2 text-justify">By clicking “I accept,” you acknowledge and agree to this use. If you click “I reject,” CircInspect will run without this internal quality improvement logging enabled.</p> 
-
-</div>
-		<div className="mt-4">
-		<button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-8 rounded ml-4" onClick={()=>{setPolicyAccepted(true); setShowPolicy(false)}}>I accept</button>
-		<button className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-8 rounded ml-4" onClick={()=>{setPolicyAccepted(false); setShowPolicy(false)}}>I reject</button>
-		</div>
-			</Rodal>
-		</>
+      <Rodal
+        customStyles={{ overflow: "auto", padding: "10px", cursor: "default" }}
+        visible={showLibraries}
+        onClose={() => setShowLibraries(false)}
+        height={480}
+        width={400}
+      >
+        <h1 className="font-bold text-xl mx-4 mt-2">Available Libraries</h1>
+        <div className="h-4"></div>
+        <table className="w-5/6 m-auto border border-gray-700">
+          <tbody>
+            {availableLibraries.map((a) => (
+              <tr className="even:bg-gray-300" key={a[0]}>
+                <td className="p-1">{a[0]}</td>
+                <td className={a[1] === "unavailable" ? "text-red-600" : ""}>
+                  {a[1]}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="h-4"></div>
+        <p className="mx-4">
+          If you need another library, please let us know by clicking the
+          <b className="font-bold"> Give Feedback</b>{" "}
+          <span className="inline-flex align-middle">
+            <MarkGithubIcon size={24} />
+          </span>{" "}
+          button on the top right!
+        </p>
+      </Rodal>
+    </>
   );
 };
 export default Landing;

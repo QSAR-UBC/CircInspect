@@ -1,0 +1,15 @@
+import pennylane as qp
+dev = qp.device("default.qubit", wires=2)
+@qp.qnode(dev)
+def my_circuit():
+    qp.Hadamard(
+        wires=0
+    )
+    qp.CNOT(
+        wires=[
+            0,
+            1
+        ]
+    )
+    return qp.probs()
+my_circuit()
