@@ -1,0 +1,8 @@
+import pennylane as qp
+dev = qp.device("default.qubit", wires=1)
+
+#@qp.transforms.merge_rotations
+@qp.qnode(dev)
+def circuit():
+    qp.Hadamard(0)
+    return qp.expval(qp.PauliZ(0))

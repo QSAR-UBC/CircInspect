@@ -11,6 +11,7 @@
   margin: 0;
   padding: 0;
 }
+
 body {
   font-family: 'IBM Plex Sans', sans-serif;
   font-weight: 300;
@@ -23,29 +24,66 @@ body {
 }
 
 .github-corner svg {
-  position:absolute;
-  right:0;
-  top:0;
-  mix-blend-mode:darken;
-  color:#ffffff;
-  fill:#000000;
+  position: absolute;
+  right: 0;
+  top: 0;
+  mix-blend-mode: darken;
+  color: #ffffff;
+  fill: #000000;
 }
+
 .github-corner:hover .octo-arm {
-  animation:octocat-wave .56s;
+  animation: octocat-wave .56s;
 }
+
 @keyframes octocat-wave {
-  0%, 100% {
-    transform:rotate(0);
+
+  0%,
+  100% {
+    transform: rotate(0);
   }
-  20%, 60% { 
-    transform:rotate(-20deg);
-  
-  } 40%, 80% {
-    transform:rotate(10deg);
+
+  20%,
+  60% {
+    transform: rotate(-20deg);
+
+  }
+
+  40%,
+  80% {
+    transform: rotate(10deg);
   }
 }
+
 ul {
   padding-left: 10px;
   list-style: circle;
-cursor: pointer; 
+  cursor: pointer;
+}
+
+.react-flow__controls {
+  opacity: 0.6;
+  transition: opacity 0.1s ease;
+}
+
+.react-flow__controls:hover {
+  opacity: 1;
+}
+
+.react-flow__controls button {
+  background: #2a2a2a;
+  color: #888;
+  border: none;
+  margin: 4px 0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.react-flow__controls button:hover {
+  background: #3a3a3a;
+  transform: scale(1.05);
+}
+
+.react-flow__controls button:active {
+  background: #888;
 }

@@ -1,4 +1,4 @@
-import pennylane as qml
+import pennylane as qp
 from pennylane import numpy as np
 from pennylane.optimize import AdamOptimizer
 
@@ -7,7 +7,7 @@ from pennylane.optimize import AdamOptimizer
 num_qubits = 10
 
 # Define the device
-dev = qml.device("default.qubit", wires=num_qubits)
+dev = qp.device("default.qubit", wires=num_qubits)
 
 # Define a random Hermitian observable
 np.random.seed(42)
@@ -15,7 +15,7 @@ H = np.random.rand(2**num_qubits, 2**num_qubits)
 H = (H + H.T) / 2  # Make it Hermitian
 
 # Convert the matrix to a PennyLane observable
-observable = qml.Hermitian(H, wires=range(num_qubits))
+observable = qp.Hermitian(H, wires=range(num_qubits))
 
 # Define the variational ansatz
 def ansatz(params, wires):
@@ -23,15 +23,15 @@ def ansatz(params, wires):
     params = params.reshape((num_layers, num_qubits, 2))
     for layer in range(num_layers):
         for qubit in range(num_qubits):
-            qml.RX(params[layer, qubit, 0], wires=qubit)
-            qml.RY(params[layer, qubit, 1], wires=qubit)
-        qml.broadcast(qml.CNOT, wires=range(num_qubits), pattern="ring")
+            qp.RX(params[layer, qubit, 0], wires=qubit)
+            qp.RY(params[layer, qubit, 1], wires=qubit)
+        qp.broadcast(qp.CNOT, wires=range(num_qubits), pattern="ring")
 
 # Define the cost function
-@qml.qnode(dev)
+@qp.qnode(dev)
 def cost(params):
     ansatz(params, wires=range(num_qubits))
-    return qml.expval(observable)
+    return qp.expval(observable)
 
 # Initialize the parameters
 num_layers = 5

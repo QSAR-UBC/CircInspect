@@ -1,4 +1,4 @@
-// Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+// Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, memo } from "react";
 import './Qeditor.css';
 import Editor, { useMonaco } from '@monaco-editor/react';
 
@@ -49,59 +49,59 @@ function Qeditor(props) {
 	useEffect(() => {
 		addHighlightDecors();
 		if (props.focuson && editorRef.current && props.highlightline) {
-			editorRef.current.revealLineInCenterIfOutsideViewport(Number(props.highlightline));	
+			editorRef.current.revealLineInCenterIfOutsideViewport(Number(props.highlightline));
 		}
-	}, [props.highlightline])	
+	}, [props.highlightline])
 
-  /**
-  * Tell the Monaco editor to render the breakpoints according to list of breakpoints set by the user.
-  */
+	/**
+	* Tell the Monaco editor to render the breakpoints according to list of breakpoints set by the user.
+	*/
 	function addBreakpointDecors() {
 		if (monaco) {
 			if (decorsRef.current) decorsRef.current.clear();
-			var decorList = breaks.map(b => ({	
-					range: new monaco.Range(b, 1, b, 1),
-					options: {isWholeLine: true, linesDecorationsClassName: "breakSide"}
-				}
+			var decorList = breaks.map(b => ({
+				range: new monaco.Range(b, 1, b, 1),
+				options: { isWholeLine: true, linesDecorationsClassName: "breakSide" }
+			}
 			));
 			decorsRef.current = editorRef.current.createDecorationsCollection(decorList);
 		}
 	}
 
-  /**
-  * Tell the Monaco editor to render a line highlight if highlightline is set to a positive integer (representing line number).
-  */
+	/**
+	* Tell the Monaco editor to render a line highlight if highlightline is set to a positive integer (representing line number).
+	*/
 	function addHighlightDecors() {
 		if (monaco) {
 			if (highlightRef.current) highlightRef.current.clear();
-			if (props.highlightline && props.highlightline >= 0 ) {
-			highlightRef.current = editorRef.current.createDecorationsCollection([{
-				range: new monaco.Range(Number(props.highlightline), 1, Number(props.highlightline), 1),
-				options: {isWholeLine: true, className: "highlightLine"}
-			}]);
+			if (props.highlightline && props.highlightline >= 0) {
+				highlightRef.current = editorRef.current.createDecorationsCollection([{
+					range: new monaco.Range(Number(props.highlightline), 1, Number(props.highlightline), 1),
+					options: { isWholeLine: true, className: "highlightLine" }
+				}]);
 			}
 		}
 	}
 
-  /**
-  * Setup method that runs before the page is available to user to complete all desired
-  * setup actions such as setting callback functions for the editor's user interaction triggers.
-  */
+	/**
+	* Setup method that runs before the page is available to user to complete all desired
+	* setup actions such as setting callback functions for the editor's user interaction triggers.
+	*/
 	function handleEditorDidMount(editor, monaco) {
 		// A function called when user clicks on the editor, sets breakpoints if the specific location on the editor is clicked.
 		editor.onMouseDown((e) => {
 			if (e.target.type === 3) {
 				let ln = e.target.position.lineNumber;
-				setBreaks(breaks => (breaks.includes(ln)) ? breaks.filter(b => b !== ln) : [...breaks, ln].sort((a,b)=>a-b));
+				setBreaks(breaks => (breaks.includes(ln)) ? breaks.filter(b => b !== ln) : [...breaks, ln].sort((a, b) => a - b));
 			}
 		})
 		// keep the ref to get data from the editor later on
 		editorRef.current = editor;
 	}
 
-  /**
-  * Runs when the code is changed by the user.
-  */
+	/**
+	* Runs when the code is changed by the user.
+	*/
 	function handleEditorChange(value, event) {
 		let max = value.split("\n").length;
 		setBreaks(breaks => breaks.filter(b => b <= max));
@@ -110,9 +110,11 @@ function Qeditor(props) {
 		if (props.onChange !== null) props.onChange("code", value);
 	}
 
-	return <Editor 
-		options={{readOnly: (props.readOnly) ? props.readOnly : false,
-							selectOnLineNumbers: false}}
+	return <Editor
+		options={{
+			readOnly: (props.readOnly) ? props.readOnly : false,
+			selectOnLineNumbers: false
+		}}
 		height={(props.height) ? props.height : "80vh"}
 		width={(props.width) ? props.width : "100%"}
 		defaultLanguage={"python"}
@@ -121,7 +123,7 @@ function Qeditor(props) {
 		theme={(props.theme) ? props.theme : "vs-dark"}
 		onMount={handleEditorDidMount}
 		onChange={handleEditorChange}
-		/>;
+	/>;
 }
 
-export default Qeditor;
+export default memo(Qeditor);

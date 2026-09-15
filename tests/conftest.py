@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,14 +15,13 @@
 """ This module has the fixtures to configure pytest to work with flask """
 
 import pytest
-from server.app import create_app
+from server.sandbox.sandbox_server import app as sandbox_app
 
 
 @pytest.fixture
 def app():
-    """Start the flask application in testing mode"""
-    app = create_app({"TESTMODE": True})
-    yield app
+    """The sandbox server's flask application, used directly in tests"""
+    yield sandbox_app
 
 
 @pytest.fixture

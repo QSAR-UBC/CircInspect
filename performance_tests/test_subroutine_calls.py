@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +14,13 @@
 
 """
 An experiment to characterize how execution time is affected by
-the number of subroutine calls in the main subroutine
+the number of subroutine calls in the main subroutine, independent of
+circuit depth/gate count (that relationship is covered separately by
+test_depth.py). The called subroutine is a no-op, so the circuit has no
+real gates regardless of call count.
 """
 import time
-from helpers import visCircuit
+from helpers import vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 MIN_CALLS = 10  # required to be at least 1
@@ -26,31 +29,34 @@ MAX_CALLS = 200
 
 def test_generator(num_calls):
     code = """
-import pennylane as qml
+import pennylane as qp
 def a():
-    qml.Hadamard(wires=0)
-dev = qml.device("default.qubit", wires=1)
-@qml.qnode(dev)
+    pass
+dev = qp.device("default.qubit", wires=1)
+@qp.qnode(dev)
 def circuit():"""
     for _ in range(num_calls):
         code += """
     a()"""
     code += """
-    return qml.probs()
+    return qp.probs()
 circuit()
 """
     return code
 
 
-with open("num_subroutine_calls_results_" + str(time.time()) + ".csv", "w") as results_file:
-    results_file.write("num_subroutine_calls,s_total,s_processing_no_exec\n")
-    for num_calls in range(MIN_CALLS, MAX_CALLS, 10):
-        print("Starting run, num_subroutine_calls:", num_calls)
-        for i in range(RERUNS_PER_CASE):
-            start = time.time()
-            processing_time = visCircuit(test_generator(num_calls))
-            end = time.time()
-            if processing_time > 0:
-                results_file.write(
-                    str(num_calls) + "," + str(end - start) + "," + str(processing_time) + "\n"
-                )
+def run():
+    with open("num_subroutine_calls_results_" + str(time.time()) + ".csv", "w") as results_file:
+        results_file.write("num_subroutine_calls,total_time,processing_time,execution_time\n")
+        for num_calls in range(MIN_CALLS, MAX_CALLS, 10):
+            print("Starting run, num_subroutine_calls:", num_calls)
+            for i in range(RERUNS_PER_CASE):
+                result = vis_circuit_timed(test_generator(num_calls))
+                if result is not None:
+                    results_file.write(
+                        f"{num_calls},{result['total']},{result['processing']},{result['execution']}\n"
+                    )
+
+
+if __name__ == "__main__":
+    run()

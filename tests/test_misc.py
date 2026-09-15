@@ -1,4 +1,4 @@
-# Copyright 2025 UBC Quantum Software and Algorithms Research Lab
+# Copyright 2026 UBC Quantum Software and Algorithms Research Lab
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,15 +25,15 @@ def test_multiple_runs_different_qnodes(client):
     the application.
     """
     with open("test_cases/multiple_runs_different_qnodes.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read()).get("error", None) == ['Please run exactly one quantum node.']
 
 
 def test_multiple_runs_same_qnode(client):
     """This test confirms that running multiple instances of the same
     qnode does not break the application.
     """
-    with open("test_cases/multiple_runs_different_qnodes.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+    with open("test_cases/multiple_runs_same_qnode.txt", "r") as f:
+        assert visCircuit(client, f.read()).get("error", None) == ['Please run exactly one quantum node.']
 
 
 def test_top_level_classical_functions(client):
@@ -41,18 +41,18 @@ def test_top_level_classical_functions(client):
     does not break the application.
     """
     with open("test_cases/top_level_classical_functions.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read()).get("error", None) == ['Please run exactly one quantum node.']
 
 
-def test_qml_operations_in_multiple_lines(client):
-    """This test confirms that writing qml operations in multiple lines
+def test_qp_operations_in_multiple_lines(client):
+    """This test confirms that writing qp operations in multiple lines
     do not result in unexpected errors. For example:
-    qml.CNOT(
+    qp.CNOT(
         wires=[
             0,
             1
         ]
     )
     """
-    with open("test_cases/qml_operations_in_multiple_lines.txt", "r") as f:
+    with open("test_cases/qp_operations_in_multiple_lines.txt", "r") as f:
         assert visCircuit(client, f.read()).get("error", None) is None

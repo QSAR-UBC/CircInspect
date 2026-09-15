@@ -1,0 +1,12 @@
+import pennylane as qp
+dev = qp.device("default.qubit", wires=1)
+
+@qp.transform
+def my_custom_transform(tape):
+    return [tape], lambda results: results[0]
+
+@my_custom_transform
+@qp.qnode(dev)
+def circuit():
+    qp.PauliX(0)
+    return qp.expval(qp.PauliZ(0))
