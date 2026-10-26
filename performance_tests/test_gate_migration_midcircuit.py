@@ -16,18 +16,18 @@
 An experiment combining the gate-migration and mid-circuit measurement
 benchmarks: the "unit" being moved from inline-in-the-qnode to an
 individual outside helper function is a mid-circuit measurement paired
-with a conditional gate. The total number of units stays fixed at
+with a conditional gate (rather than a bare gate, as in
+test_gate_migration.py). The total number of units stays fixed at
 TOTAL_UNITS; only the inside/outside split changes.
 """
 import textwrap
 import time
 
-from helpers import vis_circuit_timed
+from helpers import _session_enter, _session_exit, vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 TOTAL_UNITS = 12
 STEP = 2
-
 
 def test_generator(units_outside, total_units=TOTAL_UNITS):
     units_inside = total_units - units_outside
@@ -57,13 +57,15 @@ def test_generator(units_outside, total_units=TOTAL_UNITS):
     """).format(helper_defs=helper_defs, body=body)
 
 
-def run():
+def run(port):
+    """Run the full sweep against an already-warmed sandbox port shared
+    for the entire test (a single container instead of one per call)."""
     with open(f"gate_migration_midcircuit_results_{time.time()}.csv", "w") as results_file:
         results_file.write("units_outside,total_time,processing_time,execution_time\n")
         for units_outside in range(0, TOTAL_UNITS + 1, STEP):
             print("Starting run, units_outside:", units_outside)
             for _ in range(RERUNS_PER_CASE):
-                result = vis_circuit_timed(test_generator(units_outside))
+                result = vis_circuit_timed(test_generator(units_outside), port)
                 if result is not None:
                     results_file.write(
                         f"{units_outside},{result['total']},{result['processing']},{result['execution']}\n"
@@ -71,4 +73,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

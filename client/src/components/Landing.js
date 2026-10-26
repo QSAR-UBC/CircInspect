@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// External Libraries
+// ─── External Libraries ───────────────────────────────────────────────────────
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { ToastContainer } from "react-toastify";
@@ -20,13 +20,13 @@ import Rodal from "rodal";
 import "react-toastify/dist/ReactToastify.css";
 import "rodal/lib/rodal.css";
 
-// Internal Utilities
+// ─── Internal Utilities ───────────────────────────────────────────────────────
 import { defineTheme } from "../lib/defineTheme";
 
-// Helpers
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 import { getSubtreeForLevel } from "../helpers/graphHelpers";
 
-// Components
+// ─── Components ───────────────────────────────────────────────────────────────
 import OutputWindow from "./OutputWindow";
 import Header from "./Header";
 import {
@@ -81,31 +81,28 @@ my_circuit()`;
 const POST_SELECT_ERROR_MSG = "Invalid state: Post-selected measurement probability is 0";
 
 const Landing = ({ pennylaneVersion }) => {
-  // Identifies this tab to the backend so its debug state doesn't collide with other open tabs
-  const [sessionId] = useState(() => crypto.randomUUID());
-
-  // Code editor state
+  // ── Code editor state ───────────────────────────────────────────────────────
   const [codeEditorData, setCodeEditorData] = useState(DEFAULT_CODE);
   const [code, setCode] = useState("");
   const [errorInCode, setErrorInCode] = useState([]);
 
-  // Debugger state
+  // ── Debugger state ──────────────────────────────────────────────────────────
   const [debuggerActive, setDebuggerActive] = useState(false);
   const [readOnlyFlag, setReadOnlyFlag] = useState(false);
   const [breakpointLines, setBreakpointLines] = useState(new Set());
   const [line, setLine] = useState(-1);
   const [showLoading, setShowLoading] = useState(false);
 
-  // Circuit visualization state
+  // ── Circuit visualization state ─────────────────────────────────────────────
   const [imgsrc, setImgSrc] = useState("/defaultImage.png");
 
-  // Theme state
+  // ── Theme state ─────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState("cobalt");
 
-  // Breakpoints state
+  // ── Breakpoints state ───────────────────────────────────────────────────────
   const [breaks, setBreaks] = useState([]);
 
-  // API / backend config state
+  // ── API / backend config state ──────────────────────────────────────────────
   const [deviceName, setDeviceName] = useState("");
   const [commands, setCommands] = useState("");
   const [debugIndex, setDebugIndex] = useState(-1);
@@ -115,12 +112,15 @@ const Landing = ({ pennylaneVersion }) => {
   const [numWires, setNumWires] = useState(null);
   const [numShots, setNumShots] = useState(null);
 
-  // Version / library state
+  // ── Session state ───────────────────────────────────────────────────────────
+  const [sessionID, setSessionID] = useState(null);
+
+  // ── Version / library state ─────────────────────────────────────────────────
   const [circInspectVersion] = useState("0.2.0");
   const [showLibraries, setShowLibraries] = useState(false);
   const [availableLibraries, setAvailableLibraries] = useState([]);
 
-  // Graph / transform state
+  // ── Graph / transform state ─────────────────────────────────────────────────
   const [graphData, setGraphData] = useState(null);
   const [fullGraphData, setFullGraphData] = useState(null);
   const [displayTransformLevel, setDisplayTransformLevel] = useState(0);
@@ -131,15 +131,17 @@ const Landing = ({ pennylaneVersion }) => {
   const activeTransformsRef = React.useRef(null);
   const prevPresentTransformsRef = React.useRef([]);
 
-  // Mid-circuit measurement postselect state
+  // ── Mid-circuit measurement postselect state ────────────────────────────────
   const [postSelectOverrides, setPostSelectOverrides] = useState({});
   const postSelectOverridesRef = React.useRef({});
   const prevPostSelectOverridesRef = React.useRef({});
 
-  // Effects
+  // ── Port state ──────────────────────────────────────────────────────────────
+  const [port, setPort] = useState(null);
 
-  /** Fetch available library versions and set the theme on mount, then run
-   * the default circuit once. */
+  // ─── Effects ────────────────────────────────────────────────────────────────
+
+  /** Fetch available library versions on mount. */
   useEffect(() => {
     axios
       .get("/library_version")
@@ -153,13 +155,13 @@ const Landing = ({ pennylaneVersion }) => {
         ]);
       })
       .catch((err) => console.error("Library version fetch failed:", err));
-
-    defineTheme("tomorrow-night").then((_) =>
-      setTheme({ value: "tomorrow-night", label: "tomorrow-night" })
-    );
-
-    getDataFromBackEnd(codeEditorData);
   }, []);
+
+  useEffect(() => {
+    if (port !== null) {
+      getDataFromBackEnd(codeEditorData);
+    }
+  }, [port]);
 
   /** Keep activeTransformsRef in sync with activeTransforms state. */
   useEffect(() => {
@@ -239,6 +241,60 @@ const Landing = ({ pennylaneVersion }) => {
     setBreakpointLines(breaks);
   }, [breaks]);
 
+  /**
+   * Runs once when the user enters the landing page. Sets session id and
+   * color theme, and sends a sessionEnter so the backend starts a sandbox
+   * container for the session (stopped again by sessionExit on page unload).
+   */
+  useEffect(() => {
+    const session = (
+      new Date().getTime().toString(16) +
+      "_" +
+      Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString(16)
+    ).toUpperCase();
+    setSessionID(session);
+
+    defineTheme("tomorrow-night").then((_) =>
+      setTheme({ value: "tomorrow-night", label: "tomorrow-night" })
+    );
+
+    axios.post(
+      "/dc/sessionEnter",
+      {
+        session_id: session,
+      },
+      { headers: { "Content-Type": "application/json" } }
+    ).then((res) => {
+      setPort(res.data.port);
+    });
+
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+      const payload = JSON.stringify({
+        session_id: session,
+      });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          "/dc/sessionExit",
+          new Blob([payload], { type: "application/json" })
+        );
+      } else {
+        axios.post("/dc/sessionExit", payload, {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+
+
+
   /** Applies a subtree for a given level, updating graph data and circuit image. */
   const visualizeSubtreeForLevel = (graphData, level) => {
     const subtree = getSubtreeForLevel(graphData, level);
@@ -255,7 +311,7 @@ const Landing = ({ pennylaneVersion }) => {
     setImgSrc("/defaultImage.png");
   };
 
-  // Handlers
+  // ─── Handlers ───────────────────────────────────────────────────────────────
   /** Updates the circuit image when a node is selected in the command tree. */
   const handleNodeSelect = (imageBase64) => {
     setImgSrc("data:image/png;base64,".concat(imageBase64));
@@ -343,7 +399,22 @@ const Landing = ({ pennylaneVersion }) => {
   };
 
 
-  // API Calls
+  // ─── API Calls ──────────────────────────────────────────────────────────────
+  /**
+   * Normalize and display an error from the backend in the error popup.
+   * Backend errors are normally a [title, detail] array, but some paths
+   * (e.g. an unexpected exception) can still send a plain string - normalize
+   * both into that array shape so the popup can render them consistently.
+   *
+   * @param {string|string[]} error - Error payload from a backend response.
+   */
+  const showBackendError = (error) => {
+    const errorArray = Array.isArray(error) ? error : [String(error), ""];
+    setErrorInCode(errorArray);
+    const parsedLine = parseInt((errorArray[1] || "").split(" ")[2]);
+    setLine(Number.isNaN(parsedLine) ? -1 : parsedLine);
+  };
+
   /**
    * The function to send main visualizeCircuit calls to the server
    * and process the returned JSON object.
@@ -351,6 +422,7 @@ const Landing = ({ pennylaneVersion }) => {
    * @param {string} data - user code to be sent to the server
    */
   const getDataFromBackEnd = (data) => {
+    if (port === null) return;
     setErrorInCode([]);
     setShowLoadingTree(true);
 
@@ -365,17 +437,16 @@ const Landing = ({ pennylaneVersion }) => {
       .post(
         "/visualizeCircuit",
         {
-          timestamp: new Date().getTime(),
+          session_id: sessionID,
           data: data,
           postselect_overrides: postSelectOverridesRef.current,
-          session_id: sessionId,
+          port: port,
         },
         { headers: headers }
       )
       .then((res) => {
         if ("error" in res["data"]) {
-          setErrorInCode(res["data"]["error"]);
-          setLine(parseInt(res["data"]["error"][1].split(" ")[2]));
+          showBackendError(res["data"]["error"]);
           // On error, we keep the old graphData and presentTransforms to maintain the tree
           if (res["data"]["error"][0] === "Invalid state: Post-selected measurement probability is 0") {
             setPostSelectOverrides(prevPostSelectOverridesRef.current);
@@ -393,9 +464,12 @@ const Landing = ({ pennylaneVersion }) => {
           const newFullGraph = res["data"]["graph_data"];
           setFullGraphData(newFullGraph);
 
-          // On first load, default to the highest level (all transforms applied).
-          // Otherwise keep the user's selection, clamped to the new max level in
-          // case a transform was commented out.
+          // Determine display level:
+          // On first load (activeTransforms not yet set), default to the highest level
+          // (all transforms applied), matching the default "all active" UI state.
+          // On subsequent responses, preserve the user's current selection, but
+          // clamp to the new max level so the timeline never shows a level that
+          // no longer exists (e.g. when a transform is commented out).
           const currentActive = activeTransformsRef.current;
           const rawLevel = currentActive !== null
             ? currentActive.length
@@ -575,11 +649,17 @@ const Landing = ({ pennylaneVersion }) => {
     }
 
     const outputResult = await getCircuitOutputandImg(
-      sessionId,
+      port,
       nextState.renderNodeIds,
       nextState.transformRootIdx,
-      postSelectOverridesRef.current
+      postSelectOverridesRef.current,
+      sessionID
     );
+
+    if (outputResult.error) {
+      showBackendError(outputResult.error);
+      return;
+    }
 
     if (outputResult.image) {
       setImgSrc("data:image/png;base64,".concat(outputResult.image));
@@ -624,10 +704,10 @@ const Landing = ({ pennylaneVersion }) => {
         .post(
           "/visualizeCircuit",
           {
-            timestamp: new Date().getTime(),
+            session_id: sessionID,
             data: codeEditorData,
             postselect_overrides: postSelectOverridesRef.current,
-            session_id: sessionId,
+            port: port,
           },
           { headers: headers }
         )
@@ -651,18 +731,17 @@ const Landing = ({ pennylaneVersion }) => {
         .post(
           "/visualizeCircuit",
           {
-            timestamp: new Date().getTime(),
+            session_id: sessionID,
             data: codeEditorData,
             postselect_overrides: postSelectOverridesRef.current,
-            session_id: sessionId,
+            port: port,
           },
           { headers: headers }
         )
         .then((res) => {
           setErrorInCode([]);
           if ("error" in res["data"]) {
-            setErrorInCode(res["data"]["error"]);
-            setLine(parseInt(res["data"]["error"][1].split(" ")[2]));
+            showBackendError(res["data"]["error"]);
           } else {
             setLine(-1);
             setDeviceName(res["data"]["device_name"]);
@@ -695,9 +774,10 @@ const Landing = ({ pennylaneVersion }) => {
 
 
 
-  // Render
+  // ─── Render ─────────────────────────────────────────────────────────────────
   const isTransformCommand = presentTransforms && presentTransforms.some((t) => t[1] === parseInt(line));
   const isPostSelectError = errorInCode.length != 0 && errorInCode[0] == POST_SELECT_ERROR_MSG;
+  const isSandboxClosedError = errorInCode.length != 0 && errorInCode[0] === "Sandbox session closed";
   return (
     <>
       <ToastContainer
@@ -904,10 +984,12 @@ const Landing = ({ pennylaneVersion }) => {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        <h3 className="text-lg font-bold">Execution Error</h3>
+                        <h3 className="text-lg font-bold">
+                          {isSandboxClosedError ? "Sandbox Session Closed" : "Execution Error"}
+                        </h3>
                       </div>
                       <div className="bg-black bg-opacity-30 rounded-lg p-4 font-mono text-sm text-red-200 border border-red-900 break-words whitespace-pre-wrap max-h-48 overflow-y-auto">
-                        {errorInCode[0]}: {errorInCode[1]}
+                        {isSandboxClosedError ? errorInCode[1] : `${errorInCode[0]}: ${errorInCode[1]}`}
                       </div>
                     </div>
                   </div>

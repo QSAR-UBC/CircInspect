@@ -18,7 +18,12 @@ distance
 """
 
 import time
-from helpers import _make_session_id, debug_output_timed, prepare_debug
+from helpers import (
+    _session_enter,
+    _session_exit,
+    debug_output_timed,
+    prepare_debug_with_port,
+)
 
 RERUNS_PER_CASE = 10
 MIN_DIST = 10
@@ -41,16 +46,15 @@ circuit()
     return code
 
 
-def run():
-    session_id = _make_session_id()
+def run(port):
     code = test_generator(MAX_DIST)
-    prepare_debug(code, session_id)
+    prepare_debug_with_port(code, port)
     with open("breakpoint_distance_results_" + str(time.time()) + ".csv", "w") as results_file:
         results_file.write("breakpoint_distance,total_time,processing_time,execution_time\n")
         for dist in range(MIN_DIST, MAX_DIST, 10):
             print("Starting run, dist:", dist)
             for i in range(RERUNS_PER_CASE):
-                result = debug_output_timed(session_id, dist)
+                result = debug_output_timed(port, dist)
                 if result is not None:
                     results_file.write(
                         f"{dist},{result['total']},{result['processing']},{result['execution']}\n"
@@ -58,4 +62,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

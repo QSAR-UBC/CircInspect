@@ -16,11 +16,17 @@
 An experiment to characterize how execution time is affected by
 the number of qubits used by the quantum circuit. DEPTH is fixed;
 num_qubits is swept.
+
+Uses the same add_layer() helper as test_depth.py: one Hadamard per
+wire per call, which PennyLane packs into a single circuit-depth
+layer regardless of wire count. True circuit depth therefore stays
+pinned at DEPTH for every num_qubits value tested, isolating the
+effect of qubit count from any depth confound.
 """
 import textwrap
 import time
 
-from helpers import vis_circuit_timed
+from helpers import _session_enter, _session_exit, vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 MIN_QUBIT = 2
@@ -53,13 +59,15 @@ def num_qubits_test_generator(num_qubits, depth):
     """)
 
 
-def run():
+def run(port):
+    """Run the full sweep against an already-warmed sandbox port shared
+    for the entire test (a single container instead of one per call)."""
     with open(f"num_qubits_results_{time.time()}.csv", "w") as results_file:
         results_file.write("num_qubits,total_time,processing_time,execution_time\n")
         for num_qubits in range(MIN_QUBIT, MAX_QUBIT, 2):
             print("Starting run, num_qubits:", num_qubits, "depth:", DEPTH)
             for _ in range(RERUNS_PER_CASE):
-                result = vis_circuit_timed(num_qubits_test_generator(num_qubits, DEPTH))
+                result = vis_circuit_timed(num_qubits_test_generator(num_qubits, DEPTH), port)
                 if result is not None:
                     results_file.write(
                         f"{num_qubits},{result['total']},{result['processing']},{result['execution']}\n"
@@ -67,4 +75,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

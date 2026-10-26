@@ -29,10 +29,12 @@
     "react-hover": "^3.0.1",
     "react-icons": "^5.0.1",
     "react-scripts": "5.0.0",
+    "react-select": "^5.3.1",
     "react-toastify": "^9.0.1",
     "react-tooltip": "^5.26.0",
     "reactjs-popup": "^2.0.6",
     "rodal": "^2.1.0",
+    "server": "^1.0.42",
     "styled-components": "^6.1.8",
     "typescript": "^4.6.4",
     "web-vitals": "^2.1.3"

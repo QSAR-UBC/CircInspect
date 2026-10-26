@@ -281,6 +281,7 @@ def test_get_full_tree_nested_clobbered_conditions_both_spliced():
     if_b.children = [gate]
     if_a.clobbered_parent = root
     if_b.clobbered_parent = if_a
+    # clobber_classical_conditions records bottom-up: inner before outer.
     root.clobbered_conditions = [if_b, if_a]
 
     with qp.queuing.AnnotatedQueue() as q:
@@ -401,7 +402,7 @@ def test_set_active_debug_command_marks_target_active():
 
 
 def test_set_active_debug_command_all_others_false():
-    """The boolean mask is True only at one position; every other command must be
+    """The boolean mask is True only at one position — every other command must be
     False regardless of what active_debug was before the call."""
     cmds = [make_cmd() for _ in range(5)]
     assign_ids(cmds)
@@ -472,7 +473,7 @@ def test_run_pennylane_commands_returns_measurement_result():
     """run_pennylane_commands should execute all quantum gates up to (not including)
     the debug_identifier gate and return the final measurement result."""
     h_cmd = _make_quantum_cmd(qp.Hadamard(0), identifier=0)
-    # debug_identifier=99, so nothing matches and ALL commands before measurement run
+    # debug_identifier=99 — nothing matches so ALL commands before measurement run
     last_command = [qp.expval(qp.PauliZ(0))]
     device = "default.qubit"
     num_shots = 0
@@ -538,7 +539,7 @@ def test_run_pennylane_commands_with_shots_returns_result():
 
 def test_run_pennylane_commands_no_gates_returns_z_plus1():
     """With an empty gate list and debug_identifier that never matches,
-    the circuit applies nothing, so <Z> on |0> is +1."""
+    the circuit applies nothing — <Z> on |0> is +1."""
     last_command = [qp.expval(qp.PauliZ(0))]
     device = "default.qubit"
     num_shots = 0
@@ -597,7 +598,7 @@ def test_run_pennylane_commands_mid_circuit_measurement_collapses_with_postselec
     )
 
     val = float(result[0]) if hasattr(result, "__len__") else float(result)
-    # Conditioned on |0> measurement, qubit is in |0>, so <Z> = +1
+    # Conditioned on |0> measurement — qubit is in |0>, so <Z> = +1
     assert val == pytest.approx(1.0)
 
 

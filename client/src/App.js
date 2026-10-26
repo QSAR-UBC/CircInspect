@@ -27,7 +27,7 @@ function App() {
 		});
 	}, []);
 
-	return <Landing pennylaneVersion={pennylaneVersion} />;
+	return <Landing pennylaneVersion={pennylaneVersion} />
 }
 
 export default App;

@@ -20,31 +20,31 @@ test groups are not reintroduced.
 from tests.functions4testing import visCircuit
 
 
-def test_multiple_runs_different_qnodes(client):
+def test_multiple_runs_different_qnodes(client, sandbox_port):
     """This test confirms that running multiple qnodes does not break
     the application.
     """
     with open("test_cases/multiple_runs_different_qnodes.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) == ['Please run exactly one quantum node.']
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) == ['Please run exactly one quantum node.']
 
 
-def test_multiple_runs_same_qnode(client):
+def test_multiple_runs_same_qnode(client, sandbox_port):
     """This test confirms that running multiple instances of the same
     qnode does not break the application.
     """
     with open("test_cases/multiple_runs_same_qnode.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) == ['Please run exactly one quantum node.']
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) == ['Please run exactly one quantum node.']
 
 
-def test_top_level_classical_functions(client):
+def test_top_level_classical_functions(client, sandbox_port):
     """This test confirms that having classical functions outside the qnode
     does not break the application.
     """
     with open("test_cases/top_level_classical_functions.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) == ['Please run exactly one quantum node.']
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) == ['Please run exactly one quantum node.']
 
 
-def test_qp_operations_in_multiple_lines(client):
+def test_qp_operations_in_multiple_lines(client, sandbox_port):
     """This test confirms that writing qp operations in multiple lines
     do not result in unexpected errors. For example:
     qp.CNOT(
@@ -55,4 +55,4 @@ def test_qp_operations_in_multiple_lines(client):
     )
     """
     with open("test_cases/qp_operations_in_multiple_lines.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None

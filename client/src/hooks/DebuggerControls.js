@@ -1,17 +1,3 @@
-// Copyright 2026 UBC Quantum Software and Algorithms Research Lab
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-
-//     http://www.apache.org/licenses/LICENSE-2.0
-
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 import axios from "axios";
 import { resolveDebugState, popTransform, getSiblingNodes, getNodeById } from "./DebuggerUtils";
 
@@ -282,17 +268,26 @@ export function getRestartState(flatNodes, graphData) {
  * @param {string[]} nodeIds - IDs of the nodes currently visible in the circuit.
  * @param {number} transformRootIdx - ID of the active transform root node.
  * @param {Object} postselectOverrides - Map of qubit index to postselection value.
- * @returns {image: string|null, circuit_output: string} Circuit image
- *   (base64 or URL) and the measurement output string.
+ * @param {string} sessionId - Current session ID, needed so the backend can refresh this session's activity.
+ * @returns {image: string|null, circuit_output: string, error?: (string|string[])}
+ *   Circuit image (base64 or URL) and the measurement output string, or an
+ *   error if the sandbox couldn't be reached.
  */
-export const getCircuitOutputandImg = async (sessionId, nodeIds, transformRootIdx, postselectOverrides) => {
+export const getCircuitOutputandImg = async (port, nodeIds, transformRootIdx, postselectOverrides, sessionId) => {
+    if (port === null) return { image: null, circuit_output: "" };
+
     try {
         const res = await axios.post("/debugOutput", {
-            session_id: sessionId,
+            port: port,
             node_ids: nodeIds,
             transform_root_idx: transformRootIdx,
-            postselect_overrides: postselectOverrides
+            postselect_overrides: postselectOverrides,
+            session_id: sessionId,
         });
+
+        if ("error" in res.data) {
+            return { image: null, circuit_output: "", error: res.data.error };
+        }
 
         return {
             image: res.data.image,

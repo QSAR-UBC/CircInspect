@@ -20,71 +20,71 @@ of pennylane and commonly used libraries
 from tests.functions4testing import visCircuit
 
 
-def test_numpy_array_in_params(client):
+def test_numpy_array_in_params(client, sandbox_port):
     """This test confirms that the use of numpy arrays as parameters do not
     result in errors. Numpy arrays are usually a problem because they are
     not JSON serializable.
     """
     with open("test_cases/numpy_in_params.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_qp_devices_subpackage(client):
+def test_qp_devices_subpackage(client, sandbox_port):
     """Device initialization can be done as qp.devices.DeviceName instead
     of usual qp.device("device.name"). This test confirms that the app
     is compatible with initializing devices using qp.devices subpackage.
     """
     with open("test_cases/qp_devices_subpackage.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_qp_device_no_wires(client):
+def test_qp_device_no_wires(client, sandbox_port):
     """Pennylane allows users to initialize a device without specifying wires.
     Initial implementation of this app looked at the device initialization
     for the number of wires. Current implementation looks at all operations
     and the wires they act on.
     """
     with open("test_cases/qp_device_no_wires.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_qp_device_no_wires_2(client):
+def test_qp_device_no_wires_2(client, sandbox_port):
     """This is a more complicated version of no wires test. A naive bugfix
     of the first one fails this because more functinality is dependent
     on the number of wires being specified. Current implementation finds
     the total number of wires if it is not specified.
     """
     with open("test_cases/qp_device_no_wires_2.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_qft_with_range_wires(client):
+def test_qft_with_range_wires(client, sandbox_port):
     """When wires are specified as a range, they are not JSON serializable.
     JSON Encoder is modified to make sure all objects of the range class
     can be serialized. This test ensures the range() object is correctly
     serialiable.
     """
     with open("test_cases/qft_with_range_wires.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_midcircuit_measure(client):
+def test_midcircuit_measure(client, sandbox_port):
     """Test that the app works with the midcircuit measurement functionality
     of the pennylane package. This failed initially because lambdas were
     not supported by pickle. Using dill instead of pickle for serialization
     fixed the issue.
     """
     with open("test_cases/qp_midcircuit_measure.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_qp_default_mixed_device_support(client):
+def test_qp_default_mixed_device_support(client, sandbox_port):
     """Confirm that default.mixed device does not result in no visualization"""
     with open("test_cases/qp_default_mixed_device_support.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_qp_default_qutrit_device_support(client):
+def test_qp_default_qutrit_device_support(client, sandbox_port):
     """Confirm that default.qutrit device does not result in no visualization"""
     with open("test_cases/qp_default_qutrit_device_support.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None

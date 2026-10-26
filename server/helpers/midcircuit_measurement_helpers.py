@@ -147,7 +147,10 @@ def apply_postselect_to_commands(commands, postselect_overrides):
                     mid_measure_op = command.code_line
                     postselect_val = int(postselect_value) if postselect_value is not None else None
 
-                    # PennyLane 0.44.0 stores postselection outcomes in _hyperparameters
+                    # Developer Note: In PennyLane 0.44.0, postselection outcomes
+                    # are stored within the `_hyperparameters` dictionary.
+                    # We update it manually here to enforce the debugger's custom
+                    # postselect values during tracing.
                     mid_measure_op._hyperparameters["postselect"] = postselect_val
 
                     command.postselect_value = postselect_val

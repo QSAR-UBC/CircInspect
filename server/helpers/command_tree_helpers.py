@@ -400,7 +400,6 @@ def update_command_images(
     num_shots,
     all_commands,
     postselect_overrides=None,
-    is_qnode=False,
 ):
     """Updates the subtree circuit img for each command in the command tree
 
@@ -411,9 +410,6 @@ def update_command_images(
         num_shots (int): Number of shots for the device
         postselect_overrides (dict{string: int}): mapping of mid circuit measurement command id -> postselect value (0 or 1) in debugger mode
     """
-
-    if is_qnode:
-        commands = [commands]
 
     for command in commands:
         if len(command.children) > 0:

@@ -1,10 +1,6 @@
 # Performance Tests for CircInspect
 
 ## Use
-With the sandbox server running locally (`poetry run python -m server.sandbox.sandbox_server`), run each test as a usual Python script. E.g. `python3 test_depth.py`. Your test will generate a `.csv` file with the test name and the unix timestamp of the test start time, with columns `<resource>,total_time,processing_time,execution_time`: total client-side wall-clock time, CircInspect's own processing time, and PennyLane's circuit execution time.
+Run each test as a usual Python script. E.g. `python3 test_depth.py`. Your test will generate a `.csv` file with the test name and the unix timestamp of the test start time.
 
-Run `python3 run_all.py` to run every test in one go.
-
-Use `results/plot_results.py <results.csv> ...` to turn any of those CSVs into scaling/breakdown plots.
-
-Note: these tests characterize the performance of *your* local run, not the exact benchmark numbers reported in the CircInspect paper. See the top-level [README](../README.md#performance-benchmarks) if you want to reproduce those.
+Each script starts a single sandbox container for its entire run (reused across every rerun/data point) rather than one container per call. To share a single container across the whole suite of sequential (non-concurrency) tests, run `python3 run_all.py` instead of invoking the scripts individually. `test_concurrent_performance.py` and `test_concurrent_performance_cold.py` are excluded from `run_all.py` since they intentionally manage their own pool of containers to measure multi-client behaviour.

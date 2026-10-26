@@ -1,9 +1,9 @@
 # Tests
 
 # Running Tests
-1. Run the sandbox server by running this command inside `CircInspect/` directory:
+1. Run the container manager server by running this command inside `CircInspect/` directory:
 ```
-  poetry run python -m server.sandbox.sandbox_server
+  poetry run flask --app server.container_manager run --debug 
 ```
 2. Run all automated tests using Pytest by running this command inside `CircInspect/tests` directory:
 ```

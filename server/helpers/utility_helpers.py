@@ -565,7 +565,7 @@ def unwrap_op(op):
             is_adjoint = not is_adjoint
             current = current.base
         elif isinstance(current, qp.ops.Conditional):
-            # Conditional is transparent. The visible gate is its base.
+            # Conditional is transparent – the visible gate is its base
             current = current.base
         else:
             # Reached the actual base gate
