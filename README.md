@@ -73,7 +73,7 @@ Follow the instructions in [tests/README.md](tests/README.md) to run automated t
 Follow the instructions in [performance_tests/README.md](performance_tests/README.md) to run performance tests that characterize the runtime of CircInspect.
 
 ## How to Contribute to CircInspect
-CircInsepct is available open source under the Apache 2.0 License. Contributions are welcome. Please follow the instructions in the following link to contribute: [How to contribute?](https://github.com/QSAR-UBC/CircInspect-dev/blob/main/.github/CONTRIBUTING.md)
+CircInspect is available open source under the Apache 2.0 License. Contributions are welcome. Please follow the instructions in the following link to contribute: [How to contribute?](https://github.com/QSAR-UBC/CircInspect-dev/blob/main/.github/CONTRIBUTING.md)
 
 ## Reference
 The primary developers of CircInspect are Mushahid Khan
