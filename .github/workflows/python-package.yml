@@ -38,12 +38,7 @@ jobs:
         run: |
           python -m pip install -U pip poetry
           poetry --version
-          poetry install
-
-#      TODO: update this later with project-specific commands
-#      - name: Check linting and formatting with ruff
-#        run: |
-#          poetry run ruff check ionizer/*.py tests/*.py
+          poetry 
 
       # tests/README.md's "Running Tests" steps 1-2, reproduced here: build
       # the sandbox image the same way local dev does (see README.md), then
