@@ -16,13 +16,16 @@
 
 import json
 import time
+import random
+import string
 
 
-def visCircuit(client, code, postselect_overrides=None):
+def visCircuit(client, code, port, postselect_overrides=None):
     """Run a visualizeCircuit API call on the test server
     Args:
         client: Flask test client
         code (string): user code
+        port (int): sandbox container port
         postselect_overrides (dict{string: int}): mapping of mid circuit
             measurement id -> postselect value (0 or 1), if any
     Returns:
@@ -34,7 +37,12 @@ def visCircuit(client, code, postselect_overrides=None):
             {
                 "data": code,
                 "postselect_overrides": postselect_overrides or {},
-                "timestamp": time.time(),
+                "port": port,
+                "session_id": (
+                    "TEST_"
+                    + str(time.time())
+                    + "".join(random.choices(string.ascii_letters + string.digits, k=9))
+                ),
             }
         ),
     )

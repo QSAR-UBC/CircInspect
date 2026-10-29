@@ -17,17 +17,18 @@ An experiment to characterize how execution/processing time changes as
 gates move from being inline inside a qnode to living in a single shared
 helper function called once from the qnode. The total gate count stays
 fixed at TOTAL_GATES; only the split between "inline" and "inside the one
-shared helper" changes.
+shared helper" changes. Contrast with test_gate_migration.py, where each
+migrating gate gets its own distinct helper function instead of sharing
+one.
 """
 import textwrap
 import time
 
-from helpers import vis_circuit_timed
+from helpers import _session_enter, _session_exit, vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 TOTAL_GATES = 200
 STEP = 10
-
 
 def test_generator(gates_outside, total_gates=TOTAL_GATES):
     gates_inside = total_gates - gates_outside
@@ -56,13 +57,15 @@ def test_generator(gates_outside, total_gates=TOTAL_GATES):
     """).format(helper_def=helper_def, body=body)
 
 
-def run():
+def run(port):
+    """Run the full sweep against an already-warmed sandbox port shared
+    for the entire test (a single container instead of one per call)."""
     with open(f"gate_migration_single_helper_results_{time.time()}.csv", "w") as results_file:
         results_file.write("gates_outside,total_time,processing_time,execution_time\n")
         for gates_outside in range(0, TOTAL_GATES + 1, STEP):
             print("Starting run, gates_outside:", gates_outside)
             for _ in range(RERUNS_PER_CASE):
-                result = vis_circuit_timed(test_generator(gates_outside))
+                result = vis_circuit_timed(test_generator(gates_outside), port)
                 if result is not None:
                     results_file.write(
                         f"{gates_outside},{result['total']},{result['processing']},{result['execution']}\n"
@@ -70,4 +73,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

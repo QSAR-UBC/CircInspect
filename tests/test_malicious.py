@@ -21,42 +21,42 @@ file, writing a file and accessing the web.
 from tests.functions4testing import visCircuit
 
 
-def run_hack_test(client, user_code_file):
+def run_hack_test(client, user_code_file, sandbox_port):
     with open(user_code_file, "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is not None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is not None
 
 
-def test_write_file_hack_1(client):
-    run_hack_test(client, "test_cases/write_file_hack_1.txt")
+def test_write_file_hack_1(client, sandbox_port):
+    run_hack_test(client, "test_cases/write_file_hack_1.txt", sandbox_port)
 
 
-def test_write_file_hack_2(client):
-    run_hack_test(client, "test_cases/write_file_hack_2.txt")
+def test_write_file_hack_2(client, sandbox_port):
+    run_hack_test(client, "test_cases/write_file_hack_2.txt", sandbox_port)
 
 
-def test_write_file_hack_3(client):
-    run_hack_test(client, "test_cases/write_file_hack_3.txt")
+def test_write_file_hack_3(client, sandbox_port):
+    run_hack_test(client, "test_cases/write_file_hack_3.txt", sandbox_port)
 
 
-def test_write_file_hack_4(client):
-    run_hack_test(client, "test_cases/write_file_hack_4.txt")
+def test_write_file_hack_4(client, sandbox_port):
+    run_hack_test(client, "test_cases/write_file_hack_4.txt", sandbox_port)
 
 
-def test_read_file_hack_1(client):
-    run_hack_test(client, "test_cases/read_file_hack_1.txt")
+def test_read_file_hack_1(client, sandbox_port):
+    run_hack_test(client, "test_cases/read_file_hack_1.txt", sandbox_port)
 
 
-def test_read_file_hack_2(client):
-    run_hack_test(client, "test_cases/read_file_hack_2.txt")
+def test_read_file_hack_2(client, sandbox_port):
+    run_hack_test(client, "test_cases/read_file_hack_2.txt", sandbox_port)
 
 
-def test_read_file_hack_3(client):
-    run_hack_test(client, "test_cases/read_file_hack_3.txt")
+def test_read_file_hack_3(client, sandbox_port):
+    run_hack_test(client, "test_cases/read_file_hack_3.txt", sandbox_port)
 
 
-def test_access_web_hack_1(client):
-    run_hack_test(client, "test_cases/access_web_hack_1.txt")
+def test_access_web_hack_1(client, sandbox_port):
+    run_hack_test(client, "test_cases/access_web_hack_1.txt", sandbox_port)
 
 
-def test_access_web_hack_2(client):
-    run_hack_test(client, "test_cases/access_web_hack_2.txt")
+def test_access_web_hack_2(client, sandbox_port):
+    run_hack_test(client, "test_cases/access_web_hack_2.txt", sandbox_port)

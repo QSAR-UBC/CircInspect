@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "circinspect"
-version = "0.2.0"
+name = "circinspect-dev"
+version = "0.1.0"
 description = ""
 authors = ["UBC Quantum Software and Algorithms Research Lab"]
 readme = "README.md"
@@ -11,9 +11,13 @@ python = "~=3.14"
 pennylane = "0.45.0"
 pennylane-catalyst = "0.14.0"
 flask = "3.1.2"
+google-api-python-client = "2.188.0"
+google-auth-oauthlib = "1.2.4"
 dill = "0.4.1"
 matplotlib = "3.10.8"
 requests = "2.32.5"
+pydot = "4.0.1"
+docker = "7.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "9.0.2"

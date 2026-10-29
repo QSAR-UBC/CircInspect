@@ -17,25 +17,25 @@
 from tests.functions4testing import visCircuit
 
 
-def test_single_line_comment_with_qnode(client):
+def test_single_line_comment_with_qnode(client, sandbox_port):
     """Ensure that parsing does not fail when
     there is a qnode decorator in a single line comment.
     """
     with open("test_cases/single_line_comment_with_qnode.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_multiline_comment_with_qnode(client):
+def test_multiline_comment_with_qnode(client, sandbox_port):
     """Ensure that parsing does not fail when
     there is a qnode decorator in a multi-line comment.
     """
     with open("test_cases/multiline_comment_with_qnode.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None
 
 
-def test_transforms_and_multiline_comment_with_qnode(client):
+def test_transforms_and_multiline_comment_with_qnode(client, sandbox_port):
     """Ensure that parsing transforms does not fail when
     there is a qnode decorator in a multi-line comment.
     """
     with open("test_cases/transforms_and_multiline_comment_with_qnode.txt", "r") as f:
-        assert visCircuit(client, f.read()).get("error", None) is None
+        assert visCircuit(client, f.read(), sandbox_port).get("error", None) is None

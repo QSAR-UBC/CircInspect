@@ -133,7 +133,7 @@ def test_get_transform_details_returns_list_like():
 
 
 def test_get_transform_details_single_transform_count():
-    """One transform in the code, one entry in the returned details."""
+    """One transform in the code → one entry in the returned details."""
     result = list(th.get_transform_details(SIMPLE_CIRCUIT))
     assert len(result) == 1
 
@@ -158,7 +158,7 @@ def test_get_transform_details_no_transforms_empty():
 
 
 def test_get_transform_details_multiple_transforms_count():
-    """Two transforms in the code, two entries."""
+    """Two transforms in the code → two entries."""
     result = list(th.get_transform_details(CIRCUIT_MULTIPLE_TRANSFORMS))
     assert len(result) == 2
 
@@ -446,7 +446,7 @@ def test_generate_transformed_command_tree_replaces_existing_children():
 
 def _build_mid_measure_tape():
     """Returns a QuantumScript with one MidMeasureMP, one Conditional(PauliX),
-    and one terminal expval measurement, built without executing a QNode."""
+    and one terminal expval measurement — built without executing a QNode."""
 
     mid_op = MidMeasureMP(wires=qp.wires.Wires([0]))
     meas_val = qp.measurements.MeasurementValue([mid_op], processing_fn=lambda v: v)
@@ -479,7 +479,7 @@ def test_generate_transformed_command_tree_mid_measure_cond_line_types():
 
 def test_generate_transformed_command_tree_after_defer_no_mid_measure_or_cond():
     """After applying defer_measurements the resulting tree must contain no
-    'mid_measurement' or 'cond' children, since both are replaced by standard gates."""
+    'mid_measurement' or 'cond' children — both are replaced by standard gates."""
     root = _make_root_cmd()
     tape = _build_mid_measure_tape()
     deferred_tape = th.get_transformed_queue_items(

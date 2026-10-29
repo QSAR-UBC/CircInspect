@@ -13,12 +13,18 @@
 # limitations under the License.
 
 """
-Runs every performance test in one process.
+Runs every sequential (non-concurrency) performance test against a single
+shared sandbox container, instead of each test script spinning up its own.
+The concurrency benchmarks (test_concurrent_performance[.py/_cold.py])
+intentionally manage their own pool of containers to measure multi-client
+behaviour, so they are run separately and are not included here.
 
 Usage:
     python3 run_all.py
 """
 import time
+
+from helpers import _session_enter, _session_exit
 
 import test_depth
 import test_num_qubits
@@ -31,7 +37,7 @@ import test_gate_migration_midcircuit
 import test_midcircuit_measurements
 import test_breakpoint_distance
 
-TESTS = [
+SEQUENTIAL_TESTS = [
     test_depth,
     test_num_qubits,
     test_lines_of_code,
@@ -46,11 +52,15 @@ TESTS = [
 
 
 def main():
-    for module in TESTS:
-        print(f"\n=== Running {module.__name__} ===")
-        start = time.time()
-        module.run()
-        print(f"=== Finished {module.__name__} in {time.time() - start:.1f}s ===")
+    session_id, port = _session_enter()
+    try:
+        for module in SEQUENTIAL_TESTS:
+            print(f"\n=== Running {module.__name__} ===")
+            start = time.time()
+            module.run(port)
+            print(f"=== Finished {module.__name__} in {time.time() - start:.1f}s ===")
+    finally:
+        _session_exit(session_id)
 
 
 if __name__ == "__main__":

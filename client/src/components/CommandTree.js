@@ -39,7 +39,7 @@ const overlayButtonStyle = {
   userSelect: "none",
 };
 
-// Layout
+// ─── Layout ───────────────────────────────────────────────────────────────────
 
 // Uses dagre to compute a top-down tree layout from raw nodes and edges.
 const getLayoutedElements = (nodes, edges, rootId) => {
@@ -79,7 +79,7 @@ const getLayoutedElements = (nodes, edges, rootId) => {
 
 const nodeTypes = { circInspect: CircInspectNode };
 
-// Main Component
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CommandTreeGraph({ graphData, onNodeSelect, isDebuggerActive, onPostSelectApply }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -243,7 +243,7 @@ export default function CommandTreeGraph({ graphData, onNodeSelect, isDebuggerAc
   const onPaneClick = useCallback(() => setSelectedNodeId(null), []);
   const onNodeClick = useCallback((_, node) => {
     setSelectedNodeId(node.id);
-    // Don't update circuit image for mid-measurement nodes, parent image shows all branches
+    // Don't update circuit image for mid-measurement nodes — parent image shows all branches
     if (onNodeSelect && node.data.subtree_circuit_img && !node.data.is_mid_measure) onNodeSelect(node.data.subtree_circuit_img);
   }, [onNodeSelect]);
 

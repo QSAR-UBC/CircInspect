@@ -20,7 +20,7 @@ test_depth.py). The called subroutine is a no-op, so the circuit has no
 real gates regardless of call count.
 """
 import time
-from helpers import vis_circuit_timed
+from helpers import _session_enter, _session_exit, vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 MIN_CALLS = 10  # required to be at least 1
@@ -45,13 +45,15 @@ circuit()
     return code
 
 
-def run():
+def run(port):
+    """Run the full sweep against an already-warmed sandbox port shared
+    for the entire test (a single container instead of one per call)."""
     with open("num_subroutine_calls_results_" + str(time.time()) + ".csv", "w") as results_file:
         results_file.write("num_subroutine_calls,total_time,processing_time,execution_time\n")
         for num_calls in range(MIN_CALLS, MAX_CALLS, 10):
             print("Starting run, num_subroutine_calls:", num_calls)
             for i in range(RERUNS_PER_CASE):
-                result = vis_circuit_timed(test_generator(num_calls))
+                result = vis_circuit_timed(test_generator(num_calls), port)
                 if result is not None:
                     results_file.write(
                         f"{num_calls},{result['total']},{result['processing']},{result['execution']}\n"
@@ -59,4 +61,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

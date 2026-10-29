@@ -40,9 +40,15 @@ jobs:
           poetry --version
           poetry install
 
+      # tests/README.md's "Running Tests" steps 1-2, reproduced here: build
+      # the sandbox image the same way local dev does (see README.md), then
+      # start the container manager server the tests talk to over HTTP.
+      - name: Build sandbox Docker image
+        run: docker build -t circinspect-sandbox -f server/sandbox/Dockerfile .
+
       - name: Start CircInspect server
         run: |
-          poetry run python -m server.sandbox.sandbox_server &
+          poetry run flask --app server.container_manager run &
           echo $! > server.pid
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:5000/library_version > /dev/null; then

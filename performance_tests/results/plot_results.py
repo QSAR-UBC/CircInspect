@@ -13,7 +13,22 @@
 # limitations under the License.
 
 """
+Made using the assitance of Claude Code.
+
 Shared plotting utility for performance_tests CSVs.
+
+Every benchmark script in this suite writes a CSV with the schema
+`<resource_value>,total_time,processing_time,execution_time` (one row per
+rerun at a given resource level, e.g. depth, num_qubits, gates_outside,
+...). This script groups those rows by resource level and produces two
+PNGs next to the input CSV:
+
+  <name>_scaling.png   line chart of mean total/processing/execution time
+                        vs. resource level, with std-dev error bars.
+  <name>_breakdown.png stacked bar chart, one bar per resource level,
+                        split into mean execution time and mean processing
+                        time (bar height = the two summed, not the
+                        separately measured wall-clock total).
 
 Usage:
     python3 plot_results.py <results.csv> [<results2.csv> ...] [--outdir DIR]
@@ -30,6 +45,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+
 COLOR_EXECUTION = "#6d5fc8"
 COLOR_PROCESSING = "#eb6834"
 COLOR_OVERHEAD = "#898781"
@@ -39,53 +55,12 @@ COLOR_TEXT = "#0b0b0b"
 COLOR_MUTED = "#52514e"
 SURFACE = "#fcfcfb"
 
+# Larger, readable text throughout: titles stand out, axis
+# labels/ticks/legend are all bumped up from matplotlib's ~10pt default.
 FONT_TITLE = 16
 FONT_LABEL = 13
 FONT_TICK = 11
 FONT_LEGEND = 11
-
-TITLES = {
-    "breakpoint_distance": (
-        "Scaling of Response Time with Breakpoint Distance",
-        "Response Time Composition Across Breakpoint Distances",
-    ),
-    "depth": (
-        "Scaling of Response Time with Circuit Depth",
-        "Response Time Composition Across Circuit Depths",
-    ),
-    "gate_migration": (
-        "Scaling of Response Time with Gate Placement",
-        "Response Time Composition by Gate Placement",
-    ),
-    "gate_migration_single_helper": (
-        "Scaling of Response Time with Gate Placement (Single Subroutine)",
-        "Response Time Composition by Gate Placement (Single Subroutine)",
-    ),
-    "gate_migration_midcircuit": (
-        "Scaling of Response Time with Mid-Circuit Measurement Placement",
-        "Response Time Composition by Mid-Circuit Measurement Placement",
-    ),
-    "midcircuit_measurements": (
-        "Scaling of Response Time with Mid-Circuit Measurement Count",
-        "Response Time Composition Across Mid-Circuit Measurement Counts",
-    ),
-    "nestedness": (
-        "Scaling of Response Time with Subroutine Nesting Depth",
-        "Response Time Composition Across Subroutine Nesting Depths",
-    ),
-    "num_lines_of_code": (
-        "Scaling of Response Time with Code Length",
-        "Response Time Composition Across Code Lengths",
-    ),
-    "num_qubits": (
-        "Scaling of Response Time with Qubit Count",
-        "Response Time Composition Across Qubit Counts",
-    ),
-    "num_subroutine_calls": (
-        "Scaling of Response Time with Subroutine Call Count",
-        "Response Time Composition Across Subroutine Call Counts",
-    ),
-}
 
 AXIS_LABELS = {
     "depth": "Circuit Depth",
@@ -98,14 +73,6 @@ AXIS_LABELS = {
     "num_subroutine_calls": "Number of Subroutine Calls",
     "breakpoint_distance": "Breakpoint Distance",
 }
-
-
-def titles_for(base):
-    """Look up the (scaling_title, breakdown_title) pair for a benchmark,
-    falling back to a title-cased version of the base name for any script
-    added later without an entry above."""
-    fallback = base.replace("_", " ").title()
-    return TITLES.get(base, (fallback, fallback))
 
 
 def _axis_label(resource_name):
@@ -130,7 +97,7 @@ def _thin_levels(levels, max_ticks=15):
     n = len(levels)
     if n <= max_ticks:
         return list(levels)
-    step = (n + max_ticks - 1) // max_ticks
+    step = (n + max_ticks - 1) // max_ticks  # ceil division
     thinned = list(levels[::step])
     if thinned[-1] != levels[-1]:
         thinned.append(levels[-1])
@@ -139,20 +106,14 @@ def _thin_levels(levels, max_ticks=15):
 
 def _set_level_xticks(ax, levels, max_ticks=15):
     """Pin x-axis ticks to the actual sampled resource levels instead of
-    matplotlib's automatic locator, which can place ticks at positions
-    with no corresponding data point."""
+    matplotlib's automatic "nice number" locator, which can place ticks
+    at positions with no corresponding data point."""
     ticks = _thin_levels(levels, max_ticks=max_ticks)
     ax.set_xticks(ticks)
     ax.set_xticklabels(
         [str(int(t)) if float(t).is_integer() else str(t) for t in ticks],
         fontsize=FONT_TICK, color=COLOR_MUTED,
     )
-
-
-def _legend_loc(series_start, series_end):
-    """Pick an upper corner for the legend based on whether the series
-    starts higher than it ends, so the legend avoids the data."""
-    return "upper right" if series_start > series_end else "upper left"
 
 
 def load_grouped(csv_path):
@@ -189,7 +150,7 @@ def _mean_std(values):
     return mean, std
 
 
-def plot_scaling(resource_name, grouped, out_path, title):
+def plot_scaling(csv_path, resource_name, grouped, out_path, title):
     """Line chart: resource level vs. mean total/processing/execution time."""
     levels = list(grouped.keys())
     total_mean, total_std = zip(*(_mean_std(grouped[lv]["total"]) for lv in levels))
@@ -212,14 +173,9 @@ def plot_scaling(resource_name, grouped, out_path, title):
         levels, exec_mean, yerr=exec_std, label="Execution time (PennyLane)",
         color=COLOR_EXECUTION, linewidth=2, marker="o", markersize=5, capsize=3,
     )
-
     ax.set_xlabel(_axis_label(resource_name), color=COLOR_TEXT, fontsize=FONT_LABEL)
     ax.set_ylabel("Time (s)", color=COLOR_TEXT, fontsize=FONT_LABEL)
     ax.set_title(title, color=COLOR_TEXT, fontsize=FONT_TITLE)
-
-    # Overall std dev (across all levels) per series, shown as extra
-    # legend rows via invisible handles rather than in the axis labels,
-    # since per-level std is already drawn as error bars.
     all_total = [v for lv in levels for v in grouped[lv]["total"]]
     all_proc = [v for lv in levels for v in grouped[lv]["processing"]]
     all_exec = [v for lv in levels for v in grouped[lv]["execution"]]
@@ -228,7 +184,8 @@ def plot_scaling(resource_name, grouped, out_path, title):
     (sigma_exec_handle,) = ax.plot([], [], alpha=0)
 
     edge = max(1, len(total_mean) // 5)
-    loc = _legend_loc(statistics.mean(total_mean[:edge]), statistics.mean(total_mean[-edge:]))
+    starts_high = statistics.mean(total_mean[:edge]) > statistics.mean(total_mean[-edge:])
+    legend_loc = "upper right" if starts_high else "upper left"
     legend = ax.legend(
         [total_handle, proc_handle, exec_handle, sigma_total_handle, sigma_proc_handle, sigma_exec_handle],
         [
@@ -237,11 +194,10 @@ def plot_scaling(resource_name, grouped, out_path, title):
             f"Overall σ (processing) = ±{statistics.stdev(all_proc):.3f}",
             f"Overall σ (execution) = ±{statistics.stdev(all_exec):.3f}",
         ],
-        frameon=False, labelcolor=COLOR_TEXT, loc=loc, fontsize=FONT_LEGEND,
+        frameon=False, labelcolor=COLOR_TEXT, loc=legend_loc, fontsize=FONT_LEGEND,
     )
     for text, color in zip(legend.get_texts()[3:], [COLOR_OVERHEAD, COLOR_PROCESSING, COLOR_EXECUTION]):
         text.set_color(color)
-    # Headroom above the tallest error bar for the now-taller legend to sit in.
     ymax = max(m + s for m, s in zip(total_mean, total_std))
     ymin = min(0, min(exec_mean) - max(exec_std))
     ax.set_ylim(ymin, ymax * 1.55)
@@ -251,11 +207,10 @@ def plot_scaling(resource_name, grouped, out_path, title):
     plt.close(fig)
 
 
-def plot_breakdown(resource_name, grouped, out_path, title):
+def plot_breakdown(csv_path, resource_name, grouped, out_path, title):
     """Stacked bar chart: one bar per resource level, split into mean
-    execution / processing time. The bar height (and the "total" used for
-    legend placement / y-axis headroom) is exactly processing + execution,
-    not the separately measured wall-clock total."""
+    execution / processing time. The bar height (and "total" used for
+    legend placement / y-axis headroom) is exactly processing + execution."""
     levels = list(grouped.keys())
     proc_mean = [_mean_std(grouped[lv]["processing"])[0] for lv in levels]
     exec_mean = [_mean_std(grouped[lv]["execution"])[0] for lv in levels]
@@ -279,8 +234,9 @@ def plot_breakdown(resource_name, grouped, out_path, title):
     ax.set_title(title, color=COLOR_TEXT, fontsize=FONT_TITLE)
 
     edge = max(1, len(total_mean) // 5)
-    loc = _legend_loc(statistics.mean(total_mean[:edge]), statistics.mean(total_mean[-edge:]))
-    ax.legend(frameon=False, labelcolor=COLOR_TEXT, loc=loc, fontsize=FONT_LEGEND)
+    starts_high = statistics.mean(total_mean[:edge]) > statistics.mean(total_mean[-edge:])
+    legend_loc = "upper right" if starts_high else "upper left"
+    ax.legend(frameon=False, labelcolor=COLOR_TEXT, loc=legend_loc, fontsize=FONT_LEGEND)
     ax.set_ylim(0, max(total_mean) * 1.3)
     fig.tight_layout()
     fig.savefig(out_path, facecolor=SURFACE)
@@ -295,10 +251,199 @@ def clean_base_name(csv_path):
     return re.sub(r"_results_\d+(?:\.\d+)?$", "", stem)
 
 
+TITLES = {
+    "breakpoint_distance": (
+        "Scaling of Response Time with Breakpoint Distance",
+        "Response Time Composition Across Breakpoint Distances",
+    ),
+    "depth": (
+        "Scaling of Response Time with Circuit Depth",
+        "Response Time Composition Across Circuit Depths",
+    ),
+    "gate_migration": (
+        "Scaling of Response Time with Gate Placement",
+        "Response Time Composition by Gate Placement",
+    ),
+    "gate_migration_midcircuit": (
+        "Scaling of Response Time with Mid-Circuit Measurement Placement",
+        "Response Time Composition by Mid-Circuit Measurement Placement",
+    ),
+    "gate_migration_single_helper": (
+        "Scaling of Response Time with Gate Placement (Single Subroutine)",
+        "Response Time Composition by Gate Placement (Single Subroutine)",
+    ),
+    "midcircuit_measurements": (
+        "Scaling of Response Time with Mid-Circuit Measurement Count",
+        "Response Time Composition Across Mid-Circuit Measurement Counts",
+    ),
+    "nestedness": (
+        "Scaling of Response Time with Subroutine Nesting Depth",
+        "Response Time Composition Across Subroutine Nesting Depths",
+    ),
+    "num_lines_of_code": (
+        "Scaling of Response Time with Code Length",
+        "Response Time Composition Across Code Lengths",
+    ),
+    "num_qubits": (
+        "Scaling of Response Time with Qubit Count",
+        "Response Time Composition Across Qubit Counts",
+    ),
+    "num_subroutine_calls": (
+        "Scaling of Response Time with Subroutine Call Count",
+        "Response Time Composition Across Subroutine Call Counts",
+    ),
+}
+
+THROUGHPUT_TITLES = {
+    "concurrency": "Concurrent Client Throughput Under a Pre-Warmed Sandbox Pool",
+    "concurrency_cold": "Concurrent Client Throughput Under Cold-Start Sandbox Allocation",
+}
+
+
+def titles_for(base):
+    """Look up the (scaling_title, breakdown_title) pair for a benchmark,
+    falling back to a title-cased version of the base name for any script
+    added later without an entry above."""
+    fallback = base.replace("_", " ").title()
+    return TITLES.get(base, (fallback, fallback))
+
+
+def throughput_title_for(base):
+    return THROUGHPUT_TITLES.get(base, base.replace("_", " ").title())
+
+
+def load_throughput(csv_path):
+    """Load a `Number of Clients,Calls responded per second` CSV produced by
+    test_concurrent_performance.py / test_concurrent_performance_cold.py.
+
+    Returns:
+        tuple(list[float], list[float]): client counts and their matching
+        calls-per-second, sorted by client count.
+    """
+    rows = []
+    with open(csv_path, newline="") as f:
+        reader = csv.reader(f)
+        next(reader)  # header
+        for row in reader:
+            if not row:
+                continue
+            rows.append((float(row[0]), float(row[1])))
+    rows.sort(key=lambda r: r[0])
+    clients, throughput = zip(*rows)
+    return list(clients), list(throughput)
+
+
+def csv_schema(csv_path):
+    """Identify which of the three CSV schemas this benchmark file uses:
+
+      "breakdown"  4-column `<resource>,total_time,processing_time,
+                   execution_time` (most benchmark scripts).
+      "throughput" 2-column `Number of Clients,Calls responded per second`
+                   (the concurrency benchmarks).
+      "total_only" any other 2-column `<resource>,<total_time>` schema
+                   (benchmarks using helpers.vis_circuit, which only
+                   returns a single wall-clock float, not a breakdown).
+    """
+    with open(csv_path, newline="") as f:
+        header = next(csv.reader(f))
+    if len(header) == 4:
+        return "breakdown"
+    if header[0] == "Number of Clients":
+        return "throughput"
+    return "total_only"
+
+
+def load_total_only(csv_path):
+    """Group a `<resource>,<total_time>` CSV's rows by resource level.
+
+    Returns:
+        tuple(str, dict[float, list[float]]): the resource column's header
+        name, and a mapping of resource value -> total-time samples across
+        reruns.
+    """
+    grouped = defaultdict(list)
+    with open(csv_path, newline="") as f:
+        reader = csv.reader(f)
+        header = next(reader)
+        resource_name = header[0]
+        for row in reader:
+            if not row:
+                continue
+            grouped[float(row[0])].append(float(row[1]))
+    return resource_name, dict(sorted(grouped.items()))
+
+
+def plot_total_only_scaling(csv_path, resource_name, grouped, out_path, title):
+    """Line chart: resource level vs. mean total time. A single series
+    (this schema has no processing/execution split), so it takes the
+    processing-time color rather than needing a legend."""
+    levels = list(grouped.keys())
+    total_mean, total_std = zip(*(_mean_std(grouped[lv]) for lv in levels))
+
+    fig, ax = plt.subplots(figsize=(10, 5.5), dpi=150)
+    fig.patch.set_facecolor(SURFACE)
+    _style_axes(ax)
+
+    ax.errorbar(
+        levels, total_mean, yerr=total_std, color=COLOR_PROCESSING,
+        linewidth=2, marker="o", markersize=5, capsize=3,
+    )
+
+    ax.set_xlabel(_axis_label(resource_name), color=COLOR_TEXT, fontsize=FONT_LABEL)
+    ax.set_ylabel("Total time (s)", color=COLOR_TEXT, fontsize=FONT_LABEL)
+    ax.set_title(title, color=COLOR_TEXT, fontsize=FONT_TITLE)
+    _set_level_xticks(ax, levels)
+    fig.tight_layout()
+    fig.savefig(out_path, facecolor=SURFACE)
+    plt.close(fig)
+
+
+def plot_throughput(csv_path, out_path, title):
+    """Line chart: number of concurrent clients vs. calls responded to per
+    second. A single series, so it takes the processing-time color rather
+    than needing a legend."""
+    clients, throughput = load_throughput(csv_path)
+
+    fig, ax = plt.subplots(figsize=(10, 5.5), dpi=150)
+    fig.patch.set_facecolor(SURFACE)
+    _style_axes(ax)
+
+    ax.plot(
+        clients, throughput, color=COLOR_PROCESSING, linewidth=2,
+        marker="o", markersize=5,
+    )
+
+    ax.set_xlabel(_axis_label("Number of Clients"), color=COLOR_TEXT, fontsize=FONT_LABEL)
+    ax.set_ylabel("Throughput (Calls responded per second)", color=COLOR_TEXT, fontsize=FONT_LABEL)
+    ax.set_title(title, color=COLOR_TEXT, fontsize=FONT_TITLE)
+    _set_level_xticks(ax, clients)
+    fig.tight_layout()
+    fig.savefig(out_path, facecolor=SURFACE)
+    plt.close(fig)
+
+
 def plot_csv(csv_path, out_dir=None):
     base = clean_base_name(csv_path)
     target_dir = out_dir or os.path.dirname(csv_path) or "."
     os.makedirs(target_dir, exist_ok=True)
+    schema = csv_schema(csv_path)
+
+    if schema == "throughput":
+        throughput_path = os.path.join(target_dir, f"{base}_throughput.png")
+        plot_throughput(csv_path, throughput_path, throughput_title_for(base))
+        print(f"Wrote {throughput_path}")
+        return
+
+    if schema == "total_only":
+        resource_name, grouped = load_total_only(csv_path)
+        if not grouped:
+            print(f"No data rows found in {csv_path}, skipping.")
+            return
+        scaling_title, _ = titles_for(base)
+        scaling_path = os.path.join(target_dir, f"{base}_scaling.png")
+        plot_total_only_scaling(csv_path, resource_name, grouped, scaling_path, scaling_title)
+        print(f"Wrote {scaling_path}")
+        return
 
     resource_name, grouped = load_grouped(csv_path)
     if not grouped:
@@ -307,8 +452,8 @@ def plot_csv(csv_path, out_dir=None):
     scaling_title, breakdown_title = titles_for(base)
     scaling_path = os.path.join(target_dir, f"{base}_scaling.png")
     breakdown_path = os.path.join(target_dir, f"{base}_breakdown.png")
-    plot_scaling(resource_name, grouped, scaling_path, scaling_title)
-    plot_breakdown(resource_name, grouped, breakdown_path, breakdown_title)
+    plot_scaling(csv_path, resource_name, grouped, scaling_path, scaling_title)
+    plot_breakdown(csv_path, resource_name, grouped, breakdown_path, breakdown_title)
     print(f"Wrote {scaling_path} and {breakdown_path}")
 
 

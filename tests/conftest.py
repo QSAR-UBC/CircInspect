@@ -15,13 +15,17 @@
 """ This module has the fixtures to configure pytest to work with flask """
 
 import pytest
-from server.sandbox.sandbox_server import app as sandbox_app
+import requests
+from server.container_manager import create_app
+
+CONTAINER_MANAGER_URL = "http://localhost:5000"
 
 
 @pytest.fixture
 def app():
-    """The sandbox server's flask application, used directly in tests"""
-    yield sandbox_app
+    """Create the flask application for tests"""
+    app = create_app()
+    yield app
 
 
 @pytest.fixture
@@ -34,3 +38,18 @@ def client(app):
 def runner(app):
     """flask CLI runner for running tests on command-line with more options"""
     return app.test_cli_runner()
+
+@pytest.fixture(scope="module")
+def sandbox_port(request):
+    session_id = f"TEST_{request.module.__name__}"
+    res = requests.post(
+        f"{CONTAINER_MANAGER_URL}/dc/sessionEnter",
+        json={"session_id": session_id},
+    )
+    body = res.json()
+    assert "port" in body, f"sessionEnter failed for {session_id}: {body}"
+    yield body["port"]
+    requests.post(
+        f"{CONTAINER_MANAGER_URL}/dc/sessionExit",
+        json={"session_id": session_id},
+    )

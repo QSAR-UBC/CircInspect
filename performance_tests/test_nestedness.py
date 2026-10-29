@@ -15,17 +15,19 @@
 """
 An experiment to characterize how execution time is affected by
 the nestedness of subroutines in the user code, independent of gate
-count/circuit depth.
+count/circuit depth. f0's body is a bare `pass`, and no gate is ever
+applied anywhere in the call chain, so nesting depth is fully isolated
+from any quantum-command effect (contrast with test_subroutine_calls.py,
+which counts flat call repetitions rather than nesting depth).
 """
 import textwrap
 import time
 
-from helpers import vis_circuit_timed
+from helpers import _session_enter, _session_exit, vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 MIN_CALLS = 10  # required to be at least 1
 MAX_CALLS = 200
-
 
 def test_generator(num_calls):
     funcs = ["def f0():\n    pass"]
@@ -49,13 +51,15 @@ def test_generator(num_calls):
     """).format(func_defs=func_defs, last=num_calls - 1)
 
 
-def run():
+def run(port):
+    """Run the full sweep against an already-warmed sandbox port shared
+    for the entire test (a single container instead of one per call)."""
     with open(f"nestedness_results_{time.time()}.csv", "w") as results_file:
         results_file.write("nestedness,total_time,processing_time,execution_time\n")
         for num_calls in range(MIN_CALLS, MAX_CALLS, 10):
             print("Starting run, nestedness:", num_calls)
             for _ in range(RERUNS_PER_CASE):
-                result = vis_circuit_timed(test_generator(num_calls))
+                result = vis_circuit_timed(test_generator(num_calls), port)
                 if result is not None:
                     results_file.write(
                         f"{num_calls},{result['total']},{result['processing']},{result['execution']}\n"
@@ -63,4 +67,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

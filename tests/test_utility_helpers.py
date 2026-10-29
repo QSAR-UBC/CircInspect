@@ -196,7 +196,7 @@ def test_find_first_qnode_decorator_with_transform_above():
     code = "import pennylane as qp\ndev = qp.device('default.qubit', wires=1)\n@some_transform\n@qp.qnode(dev)\ndef circuit():\n    return qp.probs()\n"
     tokens = _tokenize(code)
     result = uh.find_first_qnode_decorator(tokens)
-    assert result == 3  # @qp.qnode is on line 4, index 3
+    assert result == 3  # @qp.qnode is on line 4 → index 3
 
 
 def test_find_first_qnode_decorator_returns_none_when_absent():
@@ -331,7 +331,7 @@ def test_flatten_tree_root_then_children():
 
 
 def test_flatten_tree_depth_first_order():
-    """flatten_tree must recurse depth-first: root -> child1 -> grandchild -> child2."""
+    """flatten_tree must recurse depth-first: root → child1 → grandchild → child2."""
     root = make_cmd()
     root.identifier = 0
     child1 = make_cmd()

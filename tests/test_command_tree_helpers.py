@@ -110,7 +110,7 @@ def test_update_parent_id_scf_linked_to_parent():
 
 
 def test_update_parent_id_sibling_scf_pops_previous():
-    """Two scf nodes at the same indent level (e.g. if/elif) are siblings:
+    """Two scf nodes at the same indent level (e.g. if/elif) are siblings —
     the second should NOT be a child of the first; it should pop the first scf
     frame and link to the shared enclosing parent."""
     root = make_cmd(line_type="call", indent=0, code_line="circuit()")
@@ -142,28 +142,28 @@ def test_update_parent_id_nested_scf_and_method_call():
 
     The simulated execution trace represents this code structure:
 
-        def circuit():          # cmd0: root call frame (no "def " so scf branch fires for cmd1)
-            for i in range(2):  # cmd1: scf, pushed onto stack
-                some_func()     # cmd2: call site, inside for-loop scope
-                def some_func():# cmd3: inside some_func call
-                    qp.H(0)    # cmd4: inside some_func call
-                    return      # cmd5: ends some_func, pops call frame
-                qp.X(0)        # cmd6: back inside for-loop scope after return
+        def circuit():          # cmd0 — root call frame (no "def " so scf branch fires for cmd1)
+            for i in range(2):  # cmd1 — scf, pushed onto stack
+                some_func()     # cmd2 — call site, inside for-loop scope
+                def some_func():# cmd3 — inside some_func call
+                    qp.H(0)    # cmd4 — inside some_func call
+                    return      # cmd5 — ends some_func, pops call frame
+                qp.X(0)        # cmd6 — back inside for-loop scope after return
 
     Expected parent_id values:
-        cmd1 -> 0  (for-loop is a child of circuit / cmd0)
-        cmd2 -> 1  (call site some_func() is inside the for-loop)
-        cmd3 -> 2  (def some_func itself lives inside the for-loop; becomes call frame)
-        cmd4 -> 2  (qp.H(0) is inside some_func)
-        cmd5 -> 2  (return is linked to the top of the stack, i.e. some_func's own
-                   frame, before that frame is popped)
-        cmd6 -> 1  (after some_func returns the stack is back to the for-loop frame)
+        cmd1 → 0  (for-loop is a child of circuit / cmd0)
+        cmd2 → 1  (call site some_func() is inside the for-loop)
+        cmd3 → 2  (def some_func itself lives inside the for-loop; becomes call frame)
+        cmd4 → 2  (qp.H(0) is inside some_func)
+        cmd5 → 2  (return is linked to the top of the stack — some_func's own
+                   frame — before that frame is popped)
+        cmd6 → 1  (after some_func returns the stack is back to the for-loop frame)
     """
-    # cmd0: root, code_line must NOT contain "def " so the scf branch fires for cmd1
+    # cmd0: root — code_line must NOT contain "def " so the scf branch fires for cmd1
     cmd0 = make_cmd(parent_function="circuit", line_type="call", code_line="circuit", indent=0)
     cmd0.identifier = 0
 
-    # cmd1: for-loop scf, should be linked to cmd0 via the scf branch
+    # cmd1: for-loop scf — should be linked to cmd0 via the scf branch
     cmd1 = make_cmd(
         parent_function="circuit",
         line_type="scf",
@@ -172,14 +172,14 @@ def test_update_parent_id_nested_scf_and_method_call():
     )
     cmd1.identifier = 1
 
-    # cmd2: call site of some_func inside the for-loop; prev (cmd1) has no "def "
+    # cmd2: call site of some_func inside the for-loop — prev (cmd1) has no "def "
     # so goes through the else branch and gets linked to the for-loop frame (cmd1)
     cmd2 = make_cmd(parent_function="circuit", line_type="line", code_line="some_func()", indent=8)
     cmd2.identifier = 2
 
-    # cmd3: the def line of some_func; prev (cmd2 = "some_func()") has no "def ",
+    # cmd3: the def line of some_func — prev (cmd2 = "some_func()") has no "def ",
     # so cmd3 also goes through else and gets linked to cmd1 (for-loop).
-    # When cmd4 is processed, prev=cmd3 has "def ", so cmd3 is upgraded to a call frame.
+    # When cmd4 is processed, prev=cmd3 has "def " → cmd3 is upgraded to a call frame.
     cmd3 = make_cmd(
         parent_function="circuit",
         line_type="call",
@@ -188,17 +188,17 @@ def test_update_parent_id_nested_scf_and_method_call():
     )
     cmd3.identifier = 3
 
-    # cmd4: first line inside some_func; prev=cmd3 has "def " so the "def" branch fires;
+    # cmd4: first line inside some_func — prev=cmd3 has "def " → "def" branch fires;
     # cmd3 becomes call frame, pushed onto stack; cmd4 linked to cmd3
     cmd4 = make_cmd(parent_function="some_func", line_type="line", code_line="qp.H(0)", indent=12)
     cmd4.identifier = 4
 
-    # cmd5: return inside some_func, linked to the top of the stack (some_func's
+    # cmd5: return inside some_func — linked to the top of the stack (some_func's
     # call frame, cmd3) first; the frame is only popped afterward
     cmd5 = make_cmd(parent_function="some_func", line_type="return", code_line="return", indent=12)
     cmd5.identifier = 5
 
-    # cmd6: next gate back in the for-loop; after the call frame was popped the
+    # cmd6: next gate back in the for-loop — after the call frame was popped the
     # stack top is the for-loop scf frame (cmd1), so cmd6 is linked to cmd1
     cmd6 = make_cmd(parent_function="circuit", line_type="line", code_line="qp.X(0)", indent=8)
     cmd6.identifier = 6
@@ -837,7 +837,7 @@ def test_merge_scf_calls_distinct_line_numbers_not_merged():
 
     root.children = [
         _make_for_node(1, 0, [gate1], line_number=3),
-        _make_for_node(3, 0, [gate2], line_number=7),  # different line -> distinct
+        _make_for_node(3, 0, [gate2], line_number=7),  # different line → distinct
     ]
     cth.merge_scf_calls(root.children)
     assert len(root.children) == 2
@@ -912,11 +912,13 @@ def test_merge_scf_calls_children_reparented_after_merge():
 
 
 def test_merge_scf_calls_redirects_clobbered_parent_to_survivor():
-    """An if node clobbered from inside a for-loop body has
+    """Regression test: an if node clobbered from inside a for-loop body has
     its clobbered_parent set to whichever specific for-loop iteration object
     it happened to sit under (clobbering runs before merging). If that exact
     iteration is then discarded as a duplicate here, clobbered_parent must be
-    redirected to the surviving merged node, not left pointing at the discarded node."""
+    redirected to the surviving merged node -- otherwise it's left pointing
+    at an object that's now unreachable and never gets a valid identifier,
+    producing a dangling parent_id downstream (e.g. in graph_data)."""
     root = make_cmd(line_type="call", code_line="circuit()", indent=0)
     root.identifier = 0
     root.parent_id = None

@@ -12,20 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+import sys
 import time
 import traceback
-import multiprocessing
-import queue
-import importlib.metadata
 import dill as pickle
 from flask import Flask, request, jsonify
-from server.sandbox.quantum_stack_trace import QuantumStackTrace
+from import_restrictor import ImportRestrictor
+from quantum_stack_trace import QuantumStackTrace
 from server import helpers
 
-# Robustness guard against a hung/oversized circuit, not a security boundary.
-EXEC_TIMEOUT_SECONDS = float(os.environ.get("CIRCINSPECT_EXEC_TIMEOUT_SECONDS", 30))
-EXEC_MEMORY_LIMIT_BYTES = int(os.environ.get("CIRCINSPECT_EXEC_MEMORY_MB", 4096)) * 1024 * 1024
+
+def _install_restrictions():
+    """Installs module import restrictions onto the system path.
+
+    Reads the allowed modules from the configured allowlist and injects an
+    ImportRestrictor instance to block disallowed imports within the sandbox.
+    """
+    try:
+        with open("/sandbox/allowed_modules.txt", "r") as f:
+            allowed = frozenset(line.strip() for line in f if line.strip() and not line.lstrip().startswith("#"))
+        sys.meta_path.insert(0, ImportRestrictor(allowed))
+    except FileNotFoundError:
+        raise FileNotFoundError("allowed_modules.txt not found in /sandbox")
+
+_install_restrictions()
 
 
 def process_code(code, postselect_overrides):
@@ -91,16 +101,19 @@ def process_code(code, postselect_overrides):
             return {"error": ["Invalid state: Post-selected measurement probability is 0"]}, None, None
 
         exec_time_list.append(exec_time)
-        helpers.update_command_images(qnode, device_name, num_wires, num_shots, flat_commands, postselect_overrides, is_qnode=True)
+        # Draw the qnode's own circuit image once here so it can be reused
+        # below as the initial image, rather than rendering the identical
+        # content a second time.
+        qnode.subtree_circuit_img = helpers.get_image_bs64_bytecode(
+            helpers.draw_circuit(
+                qnode.children, device_name, num_wires, num_shots, flat_commands, postselect_overrides,
+            )
+        )
+        helpers.update_command_images(qnode.children, device_name, num_wires, num_shots, flat_commands, postselect_overrides)
 
     graph_data = helpers.get_graph_data(root_command, flat_commands)
 
-    initial_circuit_img_base_64_byte_code = helpers.get_image_bs64_bytecode(
-        helpers.draw_circuit(
-            root_command.children[0].children,
-            device_name, num_wires, num_shots, flat_commands, postselect_overrides,
-        )
-    )
+    initial_circuit_img_base_64_byte_code = root_command.children[0].subtree_circuit_img
 
     transform_details = list(helpers.get_transform_details(code))
 
@@ -155,171 +168,53 @@ def run_trace(code):
                 line_num = e.split(",")[1]
         return [exceptionarray[0], line_num], 0
 
-
-def _execute_in_child(code, postselect_overrides, result_queue):
-    """Entry point for the isolated child process. Runs process_code() and
-    ships the result back to the parent via dill. The memory cap is enforced
-    by the parent polling this process's actual resident memory (see
-    run_process_code_isolated) rather than a virtual-address-space rlimit --
-    JIT runtimes like JAX/XLA (used by pennylane-catalyst) reserve several GB
-    of virtual address space at startup regardless of how much memory the
-    circuit actually uses, so RLIMIT_AS produces false positives here.
-    """
-    result, root_command, flat_commands = process_code(code, postselect_overrides)
-    result_queue.put(pickle.dumps((result, root_command, flat_commands)))
-
-
-def _get_rss_bytes(pid):
-    """Reads a process's current resident set size (actual physical memory
-    in use) from /proc. Returns 0 if the process is gone or unreadable.
-    """
-    try:
-        with open(f"/proc/{pid}/status") as f:
-            for line in f:
-                if line.startswith("VmRSS:"):
-                    return int(line.split()[1]) * 1024
-    except (FileNotFoundError, ProcessLookupError, ValueError):
-        pass
-    return 0
-
-
-def run_process_code_isolated(code, postselect_overrides):
-    """Runs process_code() in a separate process with a wall-clock timeout and
-    a memory cap, so a buggy circuit (infinite loop, unbounded allocation)
-    can't hang or crash the shared dev server. This is a robustness guard,
-    not a security boundary.
-
-    Returns:
-        Same shape as process_code(): (result_dict, root_command, flat_commands).
-    """
-    ctx = multiprocessing.get_context("fork")
-    result_queue = ctx.Queue()
-    proc = ctx.Process(target=_execute_in_child, args=(code, postselect_overrides, result_queue))
-    proc.start()
-
-    # Drain the queue instead of proc.join()-ing first: a result larger than
-    # the pipe's OS buffer would otherwise deadlock the child on Queue.put().
-    deadline = time.time() + EXEC_TIMEOUT_SECONDS
-    payload = None
-    memory_exceeded = False
-    while payload is None and time.time() < deadline:
-        try:
-            payload = result_queue.get(timeout=0.1)
-        except queue.Empty:
-            if not proc.is_alive():
-                break
-            if _get_rss_bytes(proc.pid) > EXEC_MEMORY_LIMIT_BYTES:
-                memory_exceeded = True
-                break
-
-    if payload is not None:
-        proc.join(5)
-        if proc.is_alive():
-            proc.terminate()
-            proc.join()
-        return pickle.loads(payload)
-
-    if proc.is_alive():
-        proc.terminate()
-        proc.join(5)
-        if proc.is_alive():
-            proc.kill()
-            proc.join()
-        if memory_exceeded:
-            return {
-                "error": [
-                    "Circuit execution exceeded the "
-                    f"{EXEC_MEMORY_LIMIT_BYTES // (1024 * 1024)}MB memory limit.",
-                    "line unknown",
-                ]
-            }, None, None
-        return {"error": [f"Execution timed out after {EXEC_TIMEOUT_SECONDS:.0f} seconds.", "line unknown"]}, None, None
-
-    # Process exited without ever producing a result -- crashed unexpectedly.
-    proc.join()
-    return {"error": ["Circuit execution failed unexpectedly.", "line unknown"]}, None, None
-
-
-def safe_version(pkg):
-    try:
-        return importlib.metadata.version(pkg)
-    except Exception:
-        return "unavailable"
-
-
-_cached_sessions = {}
+_cached_session = {}
 
 app = Flask(__name__)
 app.json.default = helpers.json_default
 
-
 @app.route("/health", methods=["GET"])
 def health():
-    """Liveness probe used to confirm the server is ready."""
+    """Liveness probe used by the host to confirm the server is ready."""
     return "ok", 200
 
 
-@app.route("/library_version")
-def version():
-    return jsonify(
-        {
-            "pennylane": safe_version("pennylane"),
-            "numpy": safe_version("numpy"),
-            "autograd": safe_version("autograd"),
-            "jax": safe_version("jax"),
-            "torch": safe_version("torch"),
-            "tensorflow": safe_version("tensorflow"),
-        }
-    )
+@app.route("/execute", methods=["POST"])
+def execute():
+    """Endpoint that handles code execution requests from the main execserver.
 
-
-@app.route("/visualizeCircuit", methods=["POST"])
-def visualize_circuit():
-    """Endpoint that handles code execution requests from the client.
-
-    Accepts a JSON payload with the user's code and any postselect overrides.
+    Accepts a JSON payload indicating source code, active transforms, and postselect overrides.
 
     Returns:
         Response: A Flask response containing the JSON of the execution trace and results.
     """
     body = request.get_json(force=True, silent=True)
-    if not body:
+    if not body or "code" not in body:
         return jsonify({"error": ["No code provided.", "line unknown"]}), 400
 
-    code_received = body.get("data", "")
-    postselect_overrides = body.get("postselect_overrides") or {}
-    session_id = body.get("session_id") or "default"
-
-    restricted_code = helpers.check_for_restricted_code(code_received)
-    if restricted_code != "":
-        return jsonify({"error": restricted_code})
-
-    exec_start = time.time()
-    result, root_command, flat_commands = run_process_code_isolated(code_received, postselect_overrides)
-    exec_time = time.time() - exec_start
-
+    result, root_command, flat_commands = process_code(
+        body["code"],
+        body.get("postselect_overrides") or {},
+    )
     if root_command is not None:
-        _cached_sessions[session_id] = {
-            "root_command": root_command,
-            "device_name": result.get("device_name"),
-            "num_shots": result.get("num_shots"),
-            "num_wires": result.get("num_wires"),
-            "flat_commands": flat_commands,
-        }
-
-    result["exec_time"] = exec_time
+        _cached_session["root_command"] = root_command
+        _cached_session["device_name"] = result.get("device_name")
+        _cached_session["num_shots"] = result.get("num_shots")
+        _cached_session["num_wires"] = result.get("num_wires")
+        _cached_session["flat_commands"] = flat_commands
     return jsonify(result)
-
 
 @app.route("/debugOutput", methods=["POST"])
 def debug_output():
     """Endpoint to render the circuit up to a certain debug index.
-
+    
     Accepts:
         node_ids: list of command identifiers to include in render
         transform_root_idx: the index of the root transform being viewed in the list of flat commands
         postselect_overrides: dictionary of postselect overrides
     """
+    process_start_time = time.time()
+
     body = request.get_json(force=True, silent=True)
     if not body:
         return jsonify({"error": "No body provided"}), 400
@@ -327,20 +222,15 @@ def debug_output():
     node_ids = set(body.get("node_ids", []))
     transform_root_idx = body.get("transform_root_idx")
     postselect_overrides = body.get("postselect_overrides", {})
-    session_id = body.get("session_id") or "default"
 
-    process_start_time = time.time()
-    exec_time_list = []
-
-    session = _cached_sessions.get(session_id)
-    if session is None:
+    if "root_command" not in _cached_session:
         return jsonify({"error": "No cached session available"}), 400
 
-    root_command = session["root_command"]
-    flat_commands = session["flat_commands"]
-    device_name = session.get("device_name")
-    num_shots = session.get("num_shots")
-    num_wires = session.get("num_wires")
+    root_command = _cached_session["root_command"]
+    flat_commands = _cached_session["flat_commands"]
+    device_name = _cached_session.get("device_name")
+    num_shots = _cached_session.get("num_shots")
+    num_wires = _cached_session.get("num_wires")
 
     # Find the last command in flat_commands order that is in node_ids
     last_cmd = helpers.get_command_by_identifier(flat_commands, max(node_ids))
@@ -354,12 +244,7 @@ def debug_output():
     ]
 
     if not active_commands:
-        return jsonify({
-            "image": None,
-            "circuit_output": "",
-            "processing_time_no_exec_times": time.time() - process_start_time,
-            "exec_times_list": exec_time_list,
-        })
+        return jsonify({"image": None, "circuit_output": ""})
 
     # Commands for circuit output
     output_commands = []
@@ -389,7 +274,7 @@ def debug_output():
             final_measurement,
             last_cmd.identifier,
         )
-        exec_time_list.append(time.time() - exec_start)
+        exec_time = time.time() - exec_start
     except (ValueError, ZeroDivisionError, TypeError) as e:
         if "infs or NaNs" in str(e) or "zero-size" in str(e):
             return jsonify({"error": "Invalid state: Post-selected measurement probability is 0"}), 400
@@ -404,17 +289,18 @@ def debug_output():
         print(f"Error creating circuit image: {e}", flush=True)
         circuit_img_base_64 = None
 
-    processing_time = time.time() - process_start_time - sum(exec_time_list)
+    processing_time = time.time() - process_start_time - exec_time
 
     return jsonify({
         "image": circuit_img_base_64,
         "circuit_output": repr(circuit_output).replace("\n", "").replace(" ", ""),
         "processing_time_no_exec_times": processing_time,
-        "exec_times_list": exec_time_list,
+        "exec_times_list": [exec_time],
     })
 
 
+
 if __name__ == "__main__":
-    # Port 5000 matches client/package.json's dev-server proxy. threaded=True
-    # so a long circuit execution doesn't block other requests.
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False, threaded=True)
+    # Runs the Flask dev server — port 8080, all interfaces inside the container.
+    # The host only reaches this via the 127.0.0.1-bound published port.
+    app.run(host="0.0.0.0", port=8080, debug=False, use_reloader=False)

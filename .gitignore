@@ -55,3 +55,6 @@ yarn-error.log*
 # Text editors and IDEs
 **/.idea
 
+
+# One-command launcher state (logs)
+/.circinspect-launch/

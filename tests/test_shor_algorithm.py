@@ -17,7 +17,7 @@ Regression tests using a real, algorithmically complex circuit (QPE-based
 Shor's algorithm) as a test case. This circuit has deeply nested loops with
 subroutine calls, several helper functions with returns at varying indent
 levels, and mid-circuit measurements that later loop iterations condition
-on via qp.cond: the exact shape of circuit that exposed bugs in:
+on via qp.cond — the exact shape of circuit that exposed bugs in:
 
   - command_tree_helpers.update_parent_id (return commands inside nested
     scf/call frames being attributed to the wrong enclosing scope)
@@ -46,32 +46,32 @@ def _postselectable_measurement_ids(graph_data):
     ]
 
 
-def test_shor_algorithm_runs_without_error(client):
+def test_shor_algorithm_runs_without_error(client, sandbox_port):
     """The full QPE-based Shor's-algorithm circuit should execute and
     render without raising a backend error."""
-    result = visCircuit(client, _load_shor_code())
+    result = visCircuit(client, _load_shor_code(), sandbox_port)
     assert result.get("error", None) is None
 
 
-def test_shor_algorithm_produces_circuit_image(client):
+def test_shor_algorithm_produces_circuit_image(client, sandbox_port):
     """A base64 PNG circuit image must be returned for the top-level qnode."""
-    result = visCircuit(client, _load_shor_code())
+    result = visCircuit(client, _load_shor_code(), sandbox_port)
     assert result.get("error", None) is None
     assert isinstance(result["image"], str)
     assert len(result["image"]) > 0
 
 
-def test_shor_algorithm_graph_data_has_nodes_and_edges(client):
+def test_shor_algorithm_graph_data_has_nodes_and_edges(client, sandbox_port):
     """The command graph returned to the frontend should be well-formed and
     non-empty for such a large, deeply nested circuit."""
-    result = visCircuit(client, _load_shor_code())
+    result = visCircuit(client, _load_shor_code(), sandbox_port)
     assert result.get("error", None) is None
     graph_data = result["graph_data"]
     assert len(graph_data["nodes"]) > 0
     assert len(graph_data["edges"]) > 0
 
 
-def test_shor_algorithm_return_commands_stay_inside_their_call_frame(client):
+def test_shor_algorithm_return_commands_stay_inside_their_call_frame(client, sandbox_port):
     """Every helper function in this circuit (repeated_squaring,
     modular_inverse, doubly_controlled_adder, ...) ends with a return
     statement nested inside for/while loops. Regression test for
@@ -80,7 +80,7 @@ def test_shor_algorithm_return_commands_stay_inside_their_call_frame(client):
     own ancestor, and every non-root node must resolve to the qnode root
     within a bounded number of parent hops.
     """
-    result = visCircuit(client, _load_shor_code())
+    result = visCircuit(client, _load_shor_code(), sandbox_port)
     assert result.get("error", None) is None
 
     nodes = result["graph_data"]["nodes"]
@@ -100,16 +100,16 @@ def test_shor_algorithm_return_commands_stay_inside_their_call_frame(client):
         assert current["id"] in root_ids
 
 
-def test_shor_algorithm_mid_circuit_measurements_linked(client):
+def test_shor_algorithm_mid_circuit_measurements_linked(client, sandbox_port):
     """At least one mid-circuit measurement should be recognized as having
     a dependent qp.cond and therefore be assigned a measurement_id - this is
     what makes it eligible for postselect overrides in the UI."""
-    result = visCircuit(client, _load_shor_code())
+    result = visCircuit(client, _load_shor_code(), sandbox_port)
     assert result.get("error", None) is None
     assert len(_postselectable_measurement_ids(result["graph_data"])) > 0
 
 
-def test_shor_algorithm_postselect_override_zero(client):
+def test_shor_algorithm_postselect_override_zero(client, sandbox_port):
     """Forcing the first postselect-able mid-circuit measurement to 0 must
     not error and must still return a rendered image.
 
@@ -119,26 +119,26 @@ def test_shor_algorithm_postselect_override_zero(client):
     onto the synthetic drawing tape, causing PennyLane's drawer to crash
     trying to sort real and missing bit indices together.
     """
-    baseline = visCircuit(client, _load_shor_code())
+    baseline = visCircuit(client, _load_shor_code(), sandbox_port)
     assert baseline.get("error", None) is None
     target_id = _postselectable_measurement_ids(baseline["graph_data"])[0]
 
     result = visCircuit(
-        client, _load_shor_code(), postselect_overrides={target_id: 0}
+        client, _load_shor_code(), sandbox_port, postselect_overrides={target_id: 0}
     )
     assert result.get("error", None) is None
     assert len(result["image"]) > 0
 
 
-def test_shor_algorithm_postselect_override_one(client):
+def test_shor_algorithm_postselect_override_one(client, sandbox_port):
     """Same as test_shor_algorithm_postselect_override_zero but forcing the
     postselect value to 1."""
-    baseline = visCircuit(client, _load_shor_code())
+    baseline = visCircuit(client, _load_shor_code(), sandbox_port)
     assert baseline.get("error", None) is None
     target_id = _postselectable_measurement_ids(baseline["graph_data"])[0]
 
     result = visCircuit(
-        client, _load_shor_code(), postselect_overrides={target_id: 1}
+        client, _load_shor_code(), sandbox_port, postselect_overrides={target_id: 1}
     )
     assert result.get("error", None) is None
     assert len(result["image"]) > 0

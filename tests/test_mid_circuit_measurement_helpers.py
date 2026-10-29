@@ -452,7 +452,7 @@ def test_prune_unexecuted_commands_removes_false_branch():
     parent = make_cmd(line_type="root")
     parent.identifier = 0
 
-    # meas_val == 1? postselect=0, so this is False, should be pruned
+    # meas_val == 1? postselect=0, so this is False → should be pruned
     false_branch = _make_cond_child_with_postselect(meas_val == 1, postselect_val=False)
     parent.children = [false_branch]
 
@@ -495,7 +495,7 @@ def test_prune_unexecuted_commands_keeps_true_branch():
     parent = make_cmd(line_type="root")
     parent.identifier = 0
 
-    # meas_val == 1? postselect=1, so this is True, should be kept
+    # meas_val == 1? postselect=1, so this is True → should be kept
     true_branch = _make_cond_child_with_postselect(meas_val == 1, postselect_val=True)
     parent.children = [true_branch]
 

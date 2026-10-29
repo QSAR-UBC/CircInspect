@@ -19,7 +19,7 @@ gate) in the user code. Isolates the cost of CircInspect's mid-circuit
 measurement linking (link_mid_circuit_measurements) as a function of count.
 """
 import time
-from helpers import vis_circuit_timed
+from helpers import _session_enter, _session_exit, vis_circuit_timed
 
 RERUNS_PER_CASE = 10
 MIN_MEASUREMENTS = 2
@@ -45,13 +45,15 @@ circuit()
     return code
 
 
-def run():
+def run(port):
+    """Run the full sweep against an already-warmed sandbox port shared
+    for the entire test (a single container instead of one per call)."""
     with open("midcircuit_measurements_results_" + str(time.time()) + ".csv", "w") as results_file:
         results_file.write("num_mid_measurements,total_time,processing_time,execution_time\n")
         for num_measurements in range(MIN_MEASUREMENTS, MAX_MEASUREMENTS, STEP):
             print("Starting run, num_mid_measurements:", num_measurements)
             for i in range(RERUNS_PER_CASE):
-                result = vis_circuit_timed(test_generator(num_measurements))
+                result = vis_circuit_timed(test_generator(num_measurements), port)
                 if result is not None:
                     results_file.write(
                         f"{num_measurements},{result['total']},{result['processing']},{result['execution']}\n"
@@ -59,4 +61,8 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    session_id, port = _session_enter()
+    try:
+        run(port)
+    finally:
+        _session_exit(session_id)

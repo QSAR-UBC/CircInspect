@@ -149,7 +149,7 @@ def test_generate_networkx_command_tree_edge_created():
 
 
 def test_generate_networkx_command_tree_recurses_into_grandchildren():
-    """generate_networkx_command_tree must recurse: grandchildren should also
+    """generate_networkx_command_tree must recurse — grandchildren should also
     appear as nodes with an edge from their parent."""
     root = make_cmd(line_number=1, line_type="call")
     root.identifier = 0
@@ -195,7 +195,7 @@ def test_generate_networkx_command_tree_wireless_measurement_included():
 
 
 def _build_simple_graph(parent_identifier=0, child_identifier=1):
-    """Helper: returns a 2-node DiGraph (parent -> child) ready for jsonification."""
+    """Helper: returns a 2-node DiGraph (parent → child) ready for jsonification."""
     parent = make_cmd(parent_function="circuit", line_number=1, line_type="call")
     parent.identifier = parent_identifier
     parent.tree_node_name = "circuit"
@@ -366,7 +366,7 @@ def test_get_graph_data_graph_data_has_nodes_and_edges():
 def test_get_graph_data_marks_classical_nodes_not_visible():
     """graph_data must include every command (classical included, e.g. for the
     debugger to step through), but only mark nodes that pass the tree-visibility
-    filter as visible=True: a plain classical 'line' child stays present but
+    filter as visible=True — a plain classical 'line' child stays present but
     visible=False, while a quantum node is visible=True."""
     root = make_cmd(line_type="call", line_number=1)
     root.identifier = 0

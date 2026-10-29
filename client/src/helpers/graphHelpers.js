@@ -44,18 +44,18 @@ export const filterVisibleNodes = (graph) => {
  *
  * The unified tree has the shape:
  *   root (parent_id=null)
- *      base_qnode   (index 0 - no transforms)
- *      transform_1  (index 1 - first transform applied)
- *      transform_2  (index 2 - both transforms applied)
+ *     ── base_qnode   (index 0 - no transforms)
+ *     ── transform_1  (index 1 - first transform applied)
+ *     ── transform_2  (index 2 - both transforms applied)
  *
  * @param {Object} fullGraph - Full graph_data from the backend {nodes, edges}
- * @param {number} level- 0 = base qnode, N = Nth transform branch
+ * @param {number} level     - 0 = base qnode, N = Nth transform branch
  * @returns {Object} Filtered {nodes, edges} for just that branch
  */
 export const getSubtreeForLevel = (fullGraph, level) => {
   if (!fullGraph?.nodes?.length) return filterVisibleNodes(fullGraph);
 
-  // Build adjacency maps from edges (parent_id is unreliable, use edges directly)
+  // Build adjacency maps from edges (parent_id is unreliable — use edges directly)
   const childrenMap = {}; // parent id -> [child ids]
   const parentSet = new Set(); // ids that appear as edge targets (have a parent)
   fullGraph.edges.forEach(e => {
